@@ -1,0 +1,8 @@
+=== SCHEME REUSE ACROSS ROUNDS: library of K=20 schemes, 12 rounds, 20 replications ===
+Within a round a library scheme is exactly H0-distributed, so the single-round battery is blind to it.
+Across rounds an exact repeat of a 150-target round has lnBF = 30 ln 30 - ln K against independence.
+round         1      2      3      4      5      6      7      8      9     10     11     12
+count.    0.604  0.592  0.603  0.609  0.610  0.601  0.592  0.595  0.594  0.625  0.607  0.600
+mixture   0.614  0.600  0.672  0.677  0.650  0.682  0.763  0.786  0.697  0.725  0.765  0.792
+cum lnBF      0     -0     15     34     44     64    103    148    172    201    241    290
+single-round min-p battery rejection rate on library rounds: 0.054 (alpha 0.05)

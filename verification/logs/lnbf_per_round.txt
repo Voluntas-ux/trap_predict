@@ -1,0 +1,13 @@
+expected per-round lnBF (member vs M0) and rounds needed for lnBF=5 (decisive) at the same range  (80 rounds per truth, seed 11)
+A2 master+offset lam=.25   best member A2o lam=0.25   mean lnBF/round   0.57 (sd  1.13)  rounds to lnBF 5:   8.7
+   per-member: lam=0.25: 0.57, lam=0.5: -1.23, lam=0.75: -8.85, lam=1.0: -3495.20
+A2 master+offset lam=.5    best member A2o lam=0.5    mean lnBF/round   6.97 (sd  4.36)  rounds to lnBF 5:   0.7
+   per-member: lam=0.25: 4.28, lam=0.5: 6.97, lam=0.75: 4.37, lam=1.0: -3324.88
+A4 no-adjacent lam=.25     best member A4 lam=0.25    mean lnBF/round   1.38 (sd  1.79)  rounds to lnBF 5:   3.6
+   per-member: lam=0.25: 1.38, lam=0.5: -0.11, lam=0.75: -6.25, lam=1.0: -9308.87
+A7 firing-order lam=.5     best member A7 lam=0.5     mean lnBF/round   4.84 (sd  2.77)  rounds to lnBF 5:   1.0
+   per-member: lam=0.25: 3.15, lam=0.5: 4.84, lam=0.75: 1.54, lam=1.0: -16341.50
+A7 firing-order lam=.25    best member A7 lam=0.25    mean lnBF/round   0.80 (sd  1.18)  rounds to lnBF 5:   6.3
+   per-member: lam=0.25: 0.80, lam=0.5: -0.86, lam=0.75: -10.00, lam=1.0: -22374.02
+H0                         best member A2o lam=0.25   mean lnBF/round  -0.50 (sd  0.86)   (no member favoured)
+(the lam=1.0 members are eliminated by a single contradicting row; their lnBF is the clipped log of a zero likelihood)

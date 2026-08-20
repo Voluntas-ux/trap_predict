@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trap controller audit — what a single round can and cannot tell you</title>
+<meta name="description" content="An interactive walkthrough of a Bayesian audit of clay-target release controllers: what the model identifies, how well it predicts, and why a precise prediction model cannot be built.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#0C1315; --panel:#121D20; --panel2:#17262A; --sunk:#0A1012;
+  --ink:#E9F0ED; --body:#C6D4D0; --muted:#8299969; --muted:#83999A; --faint:#5C7175;
+  --line:rgba(160,195,195,.16); --line2:rgba(160,195,195,.30);
+  --L:#48B6DC; --S:#EFE2C0; --R:#E5718E; --amber:#F0B429; --green:#7BC47F;
+  --disp:'Bricolage Grotesque',system-ui,sans-serif;
+  --serif:'Newsreader',Georgia,serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --w:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ground);color:var(--body);font-family:var(--serif);font-size:17.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--ink);font-weight:700;line-height:1.06;margin:0;letter-spacing:-.015em}
+a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line2)}
+a:hover{border-bottom-color:var(--amber)}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 26px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.eyebrow::after{content:"";height:1px;background:var(--line);flex:1}
+section{padding:76px 0;border-top:1px solid var(--line);scroll-margin-top:60px}
+section:first-of-type{border-top:none}
+.lede{font-size:20px;line-height:1.58;color:var(--ink);font-weight:300;max-width:66ch}
+p{max-width:74ch}
+.small{font-size:15px;color:var(--muted)}
+.mono{font-family:var(--mono)}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+
+/* ---------- masthead ---------- */
+header.top{position:sticky;top:0;z-index:60;background:rgba(12,19,21,.82);backdrop-filter:blur(9px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:56px;gap:20px}
+.brand{font-family:var(--disp);font-weight:800;font-size:15px;color:var(--ink);letter-spacing:-.01em;border:none}
+.brand span{color:var(--amber)}
+nav.top-nav{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none}
+nav.top-nav::-webkit-scrollbar{display:none}
+nav.top-nav a{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:none;white-space:nowrap}
+nav.top-nav a:hover{color:var(--amber)}
+
+/* ---------- hero ---------- */
+.hero{padding:64px 0 70px}
+.hero h1{font-size:clamp(34px,5vw,60px);font-weight:800;max-width:19ch}
+.hero h1 em{font-style:normal;color:var(--amber)}
+.hero-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:48px;align-items:start;margin-top:34px}
+.fan{width:100%;height:auto}
+.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);margin-top:26px}
+.hero-stats div{padding:14px 16px;border-right:1px solid var(--line)}
+.hero-stats div:last-child{border-right:none}
+.hero-stats b{display:block;font-family:var(--disp);font-size:26px;color:var(--ink);font-weight:700}
+.hero-stats span{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+
+/* ---------- panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);padding:22px}
+.panel.sunk{background:var(--sunk)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{background:var(--panel);border:1px solid var(--line);padding:20px}
+.card h4{font-size:17px;margin-bottom:8px}
+.card p{font-size:15.5px;color:var(--muted);margin:0}
+
+/* ---------- board ---------- */
+.boardscroll{overflow-x:auto}
+.board{display:grid;grid-template-columns:auto repeat(5,1fr);gap:7px;align-items:center;font-family:var(--mono)}
+.board .hd{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);text-align:center;padding-bottom:2px}
+.board .rl{font-size:10.5px;color:var(--faint);padding-right:8px;text-align:right;letter-spacing:.06em}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.cell{position:relative;height:26px;background:var(--sunk);border:1px solid var(--line);display:flex;align-items:flex-end;overflow:hidden}
+.cell .seg{flex:1;transition:height .25s ease}
+.cell.fired{border-color:transparent}
+.cell.fired .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--sunk)}
+.cell.next{outline:2px solid var(--amber);outline-offset:1px;z-index:2}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);margin-top:14px}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+
+/* ---------- controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:20px}
+.ctl{display:flex;flex-direction:column;gap:5px}
+.ctl label{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+select,input[type=number]{font-family:var(--mono);font-size:13px;background:var(--sunk);color:var(--ink);border:1px solid var(--line2);padding:8px 10px;max-width:100%}
+select{text-overflow:ellipsis}
+input[type=range]{accent-color:var(--amber);width:150px}
+button{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:transparent;color:var(--ink);border:1px solid var(--line2);padding:9px 15px;cursor:pointer;transition:.15s}
+button:hover{border-color:var(--amber);color:var(--amber)}
+button.primary{background:var(--amber);color:#0C1315;border-color:var(--amber);font-weight:600}
+button.primary:hover{background:#ffc84d;color:#0C1315}
+button:disabled{opacity:.4;cursor:default}
+button:disabled:hover{border-color:var(--line2);color:var(--ink)}
+
+/* ---------- readouts ---------- */
+.readout{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-top:18px}
+.readout div{padding:12px 14px;border-right:1px solid var(--line)}
+.readout div:last-child{border-right:none}
+.readout b{display:block;font-family:var(--mono);font-size:20px;color:var(--ink);font-weight:500}
+.readout span{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.pbar{display:flex;height:34px;border:1px solid var(--line);font-family:var(--mono);font-size:11px}
+.pbar div{display:flex;align-items:center;justify-content:center;color:#0C1315;font-weight:600;transition:flex-basis .2s ease;overflow:hidden;white-space:nowrap}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:18px 0}
+table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.6px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--faint);font-weight:500;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px solid var(--line2)}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+td.hi{color:var(--amber)}
+td.dim{color:var(--faint)}
+td.good{color:var(--green)}
+caption{caption-side:bottom;text-align:left;font-family:var(--serif);font-size:14.5px;color:var(--muted);padding-top:10px;line-height:1.5}
+tbody.grp tr:first-child td{border-top:1px solid var(--line2)}
+
+/* ---------- misc ---------- */
+.note{border-left:2px solid var(--amber);padding:2px 0 2px 18px;margin:22px 0;color:var(--ink);font-size:16.5px}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:22px 0}
+ol.steps li{counter-increment:s;padding:0 0 16px 44px;position:relative;max-width:74ch}
+ol.steps li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:2px;font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.06em}
+.lim{border-top:1px solid var(--line);padding:22px 0;display:grid;grid-template-columns:190px 1fr;gap:28px}
+.lim h4{font-size:16.5px}
+.lim .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:6px}
+.lim p{margin:0;font-size:16px}
+footer{padding:52px 0 70px;border-top:1px solid var(--line);color:var(--faint);font-size:14.5px}
+code{font-family:var(--mono);font-size:.87em;background:var(--sunk);border:1px solid var(--line);padding:1px 5px}
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--mono);font-size:9.5px;fill:var(--faint)}
+.busy{font-family:var(--mono);font-size:11.5px;color:var(--amber);letter-spacing:.06em}
+@media (max-width:900px){
+  .hero-grid,.grid2{grid-template-columns:1fr}
+  .grid3{grid-template-columns:1fr}
+  .readout{grid-template-columns:repeat(2,1fr)}
+  .lim{grid-template-columns:1fr;gap:10px}
+  body{font-size:16.5px}
+  section{padding:56px 0}
+  .ctl{width:100%}
+  .ctl select{width:100%}
+  .controls{gap:12px}
+  input[type=range]{width:100%}
+  .hero-stats{grid-template-columns:1fr;}
+  .hero-stats div{border-right:none;border-bottom:1px solid var(--line)}
+  .hero-stats div:last-child{border-bottom:none}
+  .boardscroll .board{min-width:470px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top">controller<span>·</span>audit</a>
+    <nav class="top-nav">
+      <a href="#object">the round</a>
+      <a href="#console">live console</a>
+      <a href="#identify">identification</a>
+      <a href="#predict">prediction</a>
+      <a href="#evidence">evidence rate</a>
+      <a href="#reuse">scheme reuse</a>
+      <a href="#verify">verification</a>
+      <a href="#corrections">corrections</a>
+      <a href="#limits">limitations</a>
+      <a href="#repo">repository</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ===================== HERO ===================== -->
+<div class="wrap hero" id="hero-top">
+  <div class="eyebrow">one squad · five stations · 150 targets</div>
+  <h1>What generated this round, and <em>can anything beat counting?</em></h1>
+  <div class="hero-grid">
+    <div>
+      <p class="lede">A trap release controller is supposed to hand every athlete two lefts, two rights and one straight at each station, in an unpredictable order. This is an audit of that claim. It watches one round of 150 targets, scores seven candidate controller algorithms against each other, and predicts the next target shot by shot &mdash; then reports honestly how much of that survives contact with reality.</p>
+      <div class="hero-stats">
+        <div><b>33.3%</b><span>blind guess</span></div>
+        <div><b>60.7%</b><span>optimal counting</span></div>
+        <div><b>93.4%</b><span>best case identified</span></div>
+      </div>
+      <p class="small" style="margin-top:16px">The middle number is the ceiling if the controller is clean. The right-hand number is what the model reaches when it is not, and section&nbsp;<a href="#limits">nine</a> is about why the gap between them is narrower in practice than it looks here.</p>
+    </div>
+    <div>
+      <svg class="fan" viewBox="0 0 520 300" role="img" aria-label="Three target trajectories leaving a pit mouth: left, straight and right">
+        <defs>
+          <linearGradient id="gl" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#48B6DC" stop-opacity=".15"/><stop offset="1" stop-color="#48B6DC" stop-opacity=".9"/></linearGradient>
+          <linearGradient id="gs" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#EFE2C0" stop-opacity=".15"/><stop offset="1" stop-color="#EFE2C0" stop-opacity=".9"/></linearGradient>
+          <linearGradient id="gr" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#E5718E" stop-opacity=".15"/><stop offset="1" stop-color="#E5718E" stop-opacity=".9"/></linearGradient>
+        </defs>
+        <line x1="20" y1="262" x2="500" y2="262" stroke="rgba(160,195,195,.22)"/>
+        <rect x="236" y="252" width="48" height="10" fill="#17262A" stroke="rgba(160,195,195,.35)"/>
+        <text x="260" y="280" text-anchor="middle">pit mouth</text>
+        <path d="M260 254 Q170 150 40 96" fill="none" stroke="url(#gl)" stroke-width="2.4"/>
+        <path d="M260 254 Q258 140 254 62" fill="none" stroke="url(#gs)" stroke-width="2.4"/>
+        <path d="M260 254 Q352 150 482 96" fill="none" stroke="url(#gr)" stroke-width="2.4"/>
+        <circle cx="40" cy="96" r="5" fill="#48B6DC"/><circle cx="254" cy="62" r="5" fill="#EFE2C0"/><circle cx="482" cy="96" r="5" fill="#E5718E"/>
+        <text x="40" y="82" text-anchor="middle" fill="#48B6DC">L</text>
+        <text x="254" y="48" text-anchor="middle" fill="#EFE2C0">S</text>
+        <text x="482" y="82" text-anchor="middle" fill="#E5718E">R</text>
+      </svg>
+      <p class="small" style="margin-top:2px">Every visit to a station throws one of three direction classes. Across five visits an athlete gets two lefts, two rights and one straight. The order is the whole question.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== THE OBJECT ===================== -->
+<section id="object">
+<div class="wrap">
+  <div class="eyebrow">the unit of observation</div>
+  <div class="grid2">
+    <div>
+      <h2 style="font-size:32px">A round is not 25 numbers. It is a 6 × 5 × 5 array.</h2>
+      <p>Six athletes rotate through five stations, visiting each station five times. Every target is fired in view of the whole line, so one round yields a complete array of 150 labelled targets &mdash; thirty rows, each row a permutation of {L, L, S, R, R}. There are exactly 30 such permutations.</p>
+      <p>That matters because the instinct that one round is too small comes from counting a single athlete's 25 shots and ignoring the other 125. The squad is the observation unit.</p>
+      <p>The round also has a firing order, not just a shape. Shot <span class="mono">n</span> is athlete <span class="mono">n mod 6</span> at station <span class="mono">n mod 5</span> on visit <span class="mono">⌊n/30⌋</span>. Some controller behaviours only exist in that order, and a test built on the array alone cannot see them.</p>
+      <div class="note">Because each station hands out exactly two lefts, two rights and one straight, an athlete who counts what they have already had at that station beats chance without any model at all. That counting predictor reaches <strong>60.67 per cent</strong> over a full round, and the fifth visit to any station is always certain. Every number on this page is measured against it.</div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="tag" style="margin-bottom:14px">the urn, one station, one athlete</div>
+        <svg class="chart" viewBox="0 0 460 250" role="img" aria-label="Counting accuracy rising across the five visits to a station">
+          <g id="urnviz"></g>
+        </svg>
+        <p class="small" style="margin-top:10px">Best achievable accuracy at each visit to a station under independent uniform draws, from exhaustive enumeration of the 30 orderings. The fifth target is free; the first is a coin-flip between the two sides.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ===================== CONSOLE ===================== -->
+<section id="console">
+<div class="wrap">
+  <div class="eyebrow">live · one round · 150 pulls</div>
+  <h2 style="font-size:34px">The console</h2>
+  <p class="lede" style="margin-bottom:26px">Pick a controller algorithm and how strongly it applies, then fire the round. The board fills as targets are pulled; the belief panel shows what the model thinks generated the round and what it predicts next. Everything here runs in your browser, from the same generators and likelihoods as the Python prototype.</p>
+
+  <div class="controls">
+    <div class="ctl"><label for="algo">controller</label>
+      <select id="algo">
+        <option value="M0">Independent uniform (clean)</option>
+        <option value="A1">A1 · one ordering shared across athletes</option>
+        <option value="A2" selected>A2 · master ordering plus per-athlete offset</option>
+        <option value="A4">A4 · never repeat a direction back to back</option>
+        <option value="A5">A5 · athlete reuses one ordering at every station</option>
+        <option value="A7">A7 · avoid repeating the last direction from the group</option>
+      </select>
+    </div>
+    <div class="ctl"><label for="lam">strength λ = <span id="lamv" class="mono">1.00</span></label>
+      <input type="range" id="lam" min="0" max="1" step="0.05" value="1">
+    </div>
+    <div class="ctl"><label for="seed">seed</label><input type="number" id="seed" value="7" style="width:88px"></div>
+    <div class="ctl"><label for="speed">speed</label>
+      <select id="speed"><option value="90">slow</option><option value="35" selected>normal</option><option value="8">fast</option><option value="0">instant</option></select>
+    </div>
+    <button id="play" class="primary">Fire round</button>
+    <button id="step">Next target</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div class="grid2" style="gap:30px;align-items:start">
+    <div class="panel">
+      <div class="tag" style="margin-bottom:14px">the round board — rows are athletes, columns are stations</div>
+      <div class="boardscroll"><div class="board" id="board"></div></div>
+      <div class="legend">
+        <span><i style="background:var(--L)"></i>left</span>
+        <span><i style="background:var(--S)"></i>straight</span>
+        <span><i style="background:var(--R)"></i>right</span>
+        <span><i style="background:var(--faint)"></i>unfired cell shows what counting alone implies</span>
+      </div>
+
+      <div class="panel" style="margin-top:22px">
+        <div class="tag" style="margin-bottom:10px">next target · model's predictive</div>
+        <div class="pbar" id="nextbar"><div style="flex-basis:40%;background:var(--L)">L 40%</div><div style="flex-basis:20%;background:var(--S)">S 20%</div><div style="flex-basis:40%;background:var(--R)">R 40%</div></div>
+        <div class="small mono" id="nextlabel" style="margin-top:8px;color:var(--faint)">shot 1 · athlete 1 · station 1 · visit 1</div>
+        <div class="readout">
+          <div><b id="r-shots">0</b><span>targets fired</span></div>
+          <div><b id="r-count">—</b><span>counting correct</span></div>
+          <div><b id="r-mix">—</b><span>model correct</span></div>
+          <div><b id="r-lbf">0.0</b><span>ln BF vs clean</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="tag" style="margin-bottom:10px">posterior over controller families, updated every pull</div>
+        <svg class="chart" viewBox="0 0 620 190" id="poststack" role="img" aria-label="Posterior probability of each controller family across the round"></svg>
+        <div class="legend" id="postlegend"></div>
+      </div>
+
+      <div class="panel" style="margin-top:22px">
+        <div class="tag" style="margin-bottom:10px">running accuracy · model against counting</div>
+        <svg class="chart" viewBox="0 0 620 170" id="acccurve" role="img" aria-label="Running accuracy of the model and of the counting baseline"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:26px">
+    <div class="tag" style="margin-bottom:12px">the original six-statistic battery, run on the same round</div>
+    <p class="small" style="max-width:none;margin-top:0">The predecessor test computes six summary statistics, compares each against a simulated null, and combines them by calibrated min-p. It is a screen, not a model: it can say "not independent" but not "here is what to predict instead". Run it on the round above for the comparison.</p>
+    <div class="controls" style="margin-bottom:14px">
+      <button id="runbattery">Run the battery</button>
+      <span id="batterybusy" class="busy"></span>
+    </div>
+    <div class="tw"><table id="batterytable"><thead><tr><th>statistic</th><th>detects</th><th>observed</th><th>null mean</th><th>z</th><th>p</th></tr></thead><tbody></tbody></table></div>
+    <div id="batteryverdict" class="mono" style="font-size:13px;color:var(--faint)"></div>
+  </div>
+</div>
+</section>
+
+<!-- ===================== IDENTIFICATION ===================== -->
+<section id="identify">
+<div class="wrap">
+  <div class="eyebrow">what it is good for · 01 · saying which algorithm</div>
+  <h2 style="font-size:32px">Identification, not just rejection</h2>
+  <p>A significance test returns one bit: reject or do not reject. That bit is not actionable, because the next question is always "so what do I build instead?". The model library answers with a posterior over seven named controller algorithms and a Bayes factor for each, which is graded, has no floor, and needs no tie-break.</p>
+  <p>Each family below is a real mechanism a controller could implement. <span class="mono">λ</span> is contamination strength: λ = 1 is a pure scheme, λ = 0 is a clean controller, and everything in between is a controller that applies the scheme to some of its draws.</p>
+
+  <div class="grid3" style="margin:24px 0">
+    <div class="card"><h4>A1 · shared ordering</h4><p>Every athlete at a station gets the same order. The crudest possible dependence, and the easiest to catch.</p></div>
+    <div class="card"><h4>A2 · master plus offset</h4><p>One ordering per station, each athlete receives a cyclic rotation of it. Invisible to a marginal frequency check.</p></div>
+    <div class="card"><h4>A4 · no back-to-back repeat</h4><p>A within-row constraint. Twelve of the thirty orderings survive it, which is why it also thins the orbit space.</p></div>
+    <div class="card"><h4>A5 · cross-station coupling</h4><p>An athlete's five station rows are copies of one draw. Nothing at a single station looks wrong.</p></div>
+    <div class="card"><h4>A7 · firing-order avoidance</h4><p>Sequential: the controller avoids repeating the direction just thrown by the same group. Only visible in firing order.</p></div>
+    <div class="card"><h4>LIB · scheme reuse</h4><p>A fixed library of whole-round schemes, drawn round after round. Undetectable inside any single round. See <a href="#reuse">section six</a>.</p></div>
+  </div>
+
+  <div class="tw">
+  <table>
+    <caption>Posterior mass by family after 150 shots, 80 simulated rounds per scenario. <strong>ln BF</strong> is the median log Bayes factor of the true family against a clean controller; on the clean row it is the negated best alternative, so positive still favours "clean". The last column is how often the older six-statistic battery rejected independence on the same rounds. Regenerate with <code>python src/trap_controller_inference.py --demo</code>.</caption>
+    <thead><tr><th>truth</th><th>clean</th><th>A1</th><th>A2</th><th>A4</th><th>A5</th><th>A7</th><th>ln BF</th><th>battery rejects</th></tr></thead>
+    <tbody id="idtable"></tbody>
+  </table>
+  </div>
+
+  <div class="note">At full strength the posterior lands on the right family with probability 1.00 and log Bayes factors of 26 to 84 &mdash; odds of billions to one. At half strength it reports graded evidence of 3 to 16 where the battery's rejection rate swings between 14 and 100 per cent. At quarter strength it says, correctly, that it does not know.</div>
+  <p>The clean row is the one to read twice. Starting from a prior of 0.50, a clean round moves the posterior on "clean" only to 0.84. One round cannot certify a controller. It can only fail to convict one.</p>
+</div>
+</section>
+
+<!-- ===================== PREDICTION ===================== -->
+<section id="predict">
+<div class="wrap">
+  <div class="eyebrow">what it is good for · 02 · predicting the next target</div>
+  <h2 style="font-size:32px">Prediction, scored the only way that counts</h2>
+  <p>The same object that identifies the controller also predicts. After every pull, the posterior predictive is a distribution over the next target: a weighted mixture across all twenty-one models in the library. Score it prequentially &mdash; each prediction made before seeing the outcome, then averaged &mdash; and compare against counting. That is a test no amount of model misspecification can flatter.</p>
+
+  <div class="panel" style="margin-top:22px">
+    <div class="tag" style="margin-bottom:12px">accuracy over a full round · model against counting</div>
+    <svg class="chart" viewBox="0 0 1120 350" id="predbars" role="img" aria-label="Accuracy of the mixture model against the counting baseline for each simulated controller"></svg>
+    <p class="small" style="margin-top:10px">Grey is the counting baseline, amber is the mixture. Whole-round accuracy from 80 simulated rounds each; the dashed line is the counting ceiling of 60.7 per cent.</p>
+  </div>
+
+  <div class="grid3" style="margin-top:26px">
+    <div class="card"><h4>Insurance is nearly free</h4><p>On a clean controller the mixture costs 0.003 nats per shot and 0.001 in accuracy against pure counting. Carrying the whole library when there is nothing to find is not a real cost.</p></div>
+    <div class="card"><h4>Learning is fast when there is something to learn</h4><p>Against a master-plus-offset controller the model is at 91 per cent by the third block of thirty targets and 100 per cent from the fourth &mdash; identified from the squad's shots before your own turn comes round.</p></div>
+    <div class="card"><h4>Not knowing which algorithm barely hurts</h4><p>The mixture stays within 0.02 in accuracy of an oracle told the true model and the true λ. Almost all the gain comes from knowing that <em>some</em> structure exists.</p></div>
+  </div>
+
+  <div class="tw">
+  <table>
+    <caption>Accuracy by 30-target block and mean log-loss per target. <strong>counting</strong> is the baseline predictor, <strong>mixture</strong> is the posterior predictive over the library, <strong>oracle</strong> is told the true model and λ. Block 5 is 1.000 for everything because the fifth visit to a station is determined by the four before it.</caption>
+    <thead><tr><th>truth</th><th>predictor</th><th>b1</th><th>b2</th><th>b3</th><th>b4</th><th>b5</th><th>all</th><th>log-loss</th></tr></thead>
+    <tbody id="predtable"></tbody>
+  </table>
+  </div>
+</div>
+</section>
+
+<!-- ===================== EVIDENCE RATE ===================== -->
+<section id="evidence">
+<div class="wrap">
+  <div class="eyebrow">what it is good for · 03 · knowing when to stop collecting</div>
+  <h2 style="font-size:32px">How many rounds you actually need</h2>
+  <p>The predecessor design answered this with a power table: fix a number of rounds, simulate, read off a rejection rate, and repeat the whole study whenever the design changes. Likelihoods make it a one-line calculation instead. Evidence adds across rounds at the same range, so the expected log Bayes factor per round <em>is</em> the information rate, and a stopping rule follows: keep collecting until the cumulative evidence crosses a threshold in either direction.</p>
+
+  <div class="grid2" style="align-items:start;margin-top:22px">
+    <div class="tw">
+      <table>
+        <caption>Expected log Bayes factor per round for the best-matching library member &mdash; in every case the member at the true λ &mdash; against a clean controller, from 80 simulated rounds each. ln BF = 5 is about 150 to 1.</caption>
+        <thead><tr><th>truth</th><th>ln BF / round</th><th>sd</th><th>rounds to 150:1</th></tr></thead>
+        <tbody id="lbftable"></tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="tag" style="margin-bottom:12px">evidence ladder · cumulative ln BF against rounds collected</div>
+      <svg class="chart" viewBox="0 0 620 280" id="ladder" role="img" aria-label="Cumulative log Bayes factor against number of rounds for each contamination level"></svg>
+      <p class="small" style="margin-top:10px">Straight lines because evidence is additive. A controller applying a scheme to half its draws is convicted inside one round. At a quarter strength it takes between four and nine rounds at the same range, and the clean case drifts steadily the other way.</p>
+    </div>
+  </div>
+  <div class="note">This is also the honest form of a negative result. A single clean round is not evidence of a clean controller; it is roughly half a nat of evidence. Any report of "no dependence found" has to state the evidence rate alongside it, or it is quoting the absence of a search.</div>
+</div>
+</section>
+
+<!-- ===================== SCHEME REUSE ===================== -->
+<section id="reuse">
+<div class="wrap">
+  <div class="eyebrow">what it is good for · 04 · the thing no single-round test can see</div>
+  <h2 style="font-size:32px">Scheme reuse across rounds</h2>
+  <p>Suppose a controller holds a library of K fixed whole-round schemes and draws one per round. Inside any single round the output is exactly what a clean controller produces &mdash; identical distribution, no statistic can tell them apart. The six-statistic battery rejects such rounds 5.4 per cent of the time, which is precisely its own false-positive rate. It is blind by construction.</p>
+  <p>Across rounds it is the loudest signal in the whole problem. An exact repeat of a 150-target round carries a log Bayes factor of 30·ln30 − ln K, about 99 for a twenty-scheme library: odds of 10<sup>43</sup> to one from a single coincidence. And once a repeat is recognised from its opening targets, the remaining targets of that round are known exactly.</p>
+
+  <div class="controls" style="margin-top:24px">
+    <div class="ctl"><label for="K">library size K = <span id="Kv" class="mono">20</span></label><input type="range" id="K" min="3" max="60" step="1" value="20"></div>
+    <div class="ctl"><label for="T">rounds observed = <span id="Tv" class="mono">40</span></label><input type="range" id="T" min="5" max="120" step="5" value="40"></div>
+    <div class="ctl"><label for="seed2">seed</label><input type="number" id="seed2" value="3" style="width:88px"></div>
+    <button id="runreuse" class="primary">Observe the range</button>
+  </div>
+
+  <div class="grid2" style="align-items:start;margin-top:12px">
+    <div class="panel">
+      <div class="tag" style="margin-bottom:12px">accuracy per round · registry against counting</div>
+      <svg class="chart" viewBox="0 0 620 250" id="reuseacc" role="img" aria-label="Prediction accuracy per round as the scheme registry fills"></svg>
+    </div>
+    <div class="panel">
+      <div class="tag" style="margin-bottom:12px">cumulative evidence for reuse</div>
+      <svg class="chart" viewBox="0 0 620 250" id="reusebf" role="img" aria-label="Cumulative log Bayes factor for scheme reuse against rounds"></svg>
+    </div>
+  </div>
+  <div class="readout" style="max-width:760px">
+    <div><b id="ru-seen">—</b><span>distinct schemes seen</span></div>
+    <div><b id="ru-rep">—</b><span>repeats detected</span></div>
+    <div><b id="ru-acc">—</b><span>accuracy, last 10 rounds</span></div>
+    <div><b id="ru-bf">—</b><span>cumulative ln BF</span></div>
+  </div>
+  <p class="small" style="margin-top:16px">The registry predictor is deliberately crude: match the round so far against every scheme already recorded, and if exactly one is consistent, read the rest off it; otherwise fall back to counting. Its accuracy is jagged by design &mdash; a round drawn from a scheme already seen is predicted almost perfectly, a new one falls back to 60 per cent &mdash; and how fast the average climbs is entirely a function of K against how many rounds you have watched. Push K to sixty and the same forty rounds leave you closer to the baseline than to certainty. Matching should also be run up to athlete relabelling and rotation of station slots, which multiplies the number of comparisons but changes nothing about the method.</p>
+</div>
+</section>
+
+<!-- ===================== VERIFICATION ===================== -->
+<section id="verify">
+<div class="wrap">
+  <div class="eyebrow">what it is good for · 05 · being checkable</div>
+  <h2 style="font-size:32px">Verification</h2>
+  <p>The predecessor test was checked four ways before any of the new framework was built: exact reproduction at its own stated settings, independent replication at a different seed and larger simulation counts, a calibration check twenty-five times larger than the original, and closed-form derivations of the null moments wherever one exists.</p>
+
+  <div style="margin-top:20px">
+    <div class="tw">
+      <table>
+        <caption>Null moments against closed forms. Five of six agree to three decimals. The sixth is the subject of <a href="#corrections">correction 3.1</a>: its exact variance is 625/6, giving 10.206, and the simulated 10.07 is right while the reasoning offered for it was not.</caption>
+        <thead><tr><th>statistic</th><th>simulated</th><th>closed form</th><th>method</th></tr></thead>
+        <tbody id="momtable"></tbody>
+      </table>
+    </div>
+    <div class="tw" style="margin-top:26px">
+      <table>
+        <caption>Independent replication of the power study at seed 7 with a 20,000-row null table and 3,000 rounds per cell. Original figures in grey. Every cell is within Monte Carlo error.</caption>
+        <thead><tr><th>alternative</th><th>λ=0.25</th><th>λ=0.50</th><th>λ=0.75</th><th>λ=1.00</th></tr></thead>
+        <tbody id="reptable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2" style="align-items:start">
+    <div>
+      <h3 style="font-size:20px;margin-bottom:8px">Calibration</h3>
+      <p>The original size check used 600 rounds, which only bounds the true size to somewhere between 0.036 and 0.072. Rerun with an independent null table and 20,000 test rounds:</p>
+      <div class="tw"><table>
+        <thead><tr><th>nominal α</th><th>empirical size</th><th>standard error</th></tr></thead>
+        <tbody>
+          <tr><td>0.01</td><td class="good">0.0087</td><td class="dim">0.0007</td></tr>
+          <tr><td>0.05</td><td class="good">0.0480</td><td class="dim">0.0015</td></tr>
+          <tr><td>0.10</td><td class="good">0.0998</td><td class="dim">0.0021</td></tr>
+        </tbody>
+      </table></div>
+      <p class="small">Correctly calibrated, and slightly conservative at five per cent exactly as the discreteness of the statistics predicts.</p>
+    </div>
+    <div>
+      <h3 style="font-size:20px;margin-bottom:8px">Pooling</h3>
+      <p>The pooling table in the original note had no code behind it. Summing statistics over k rounds and calibrating against a pooled null reproduces it, so that is presumably what was done &mdash; but it had to be reverse-engineered, which is the failure mode the project's own reproducibility rule exists to prevent.</p>
+      <div class="tw"><table>
+        <thead><tr><th>case</th><th>k=1</th><th>k=2</th><th>k=3</th><th>k=5</th></tr></thead>
+        <tbody id="pooltable"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ===================== CORRECTIONS ===================== -->
+<section id="corrections">
+<div class="wrap">
+  <div class="eyebrow">what the audit found</div>
+  <h2 style="font-size:32px">Five corrections</h2>
+  <p class="lede" style="margin-bottom:8px">The implementation is correct and the numbers are reproducible. The reasoning around them needed work in five places, ordered here by consequence.</p>
+
+  <div class="lim">
+    <div><h4>Columns are not independent</h4><div class="k">3.1 · structural claim</div></div>
+    <div>
+      <p>The design note argues that one round supplies twenty-five independent columns of six athletes. Six athletes within a column are indeed independent. The five columns at the same station are not: they are built from the same six rows, and every row is a permutation, so what appears at one visit constrains the others. The exact covariance between two visit-columns' chi-squares is 1/6, giving a null variance of 625/6 and a standard deviation of 10.206 rather than the 9.354 independence would imply.</p>
+      <p class="small" style="margin-top:10px">Nothing breaks, because p-values come from simulation rather than a chi-square table. But the rationale has to be reworded to "five independent station blocks, within which athletes are independent and visit-columns are not", and no analytic shortcut may be used for that statistic: a chi-square reference would understate the spread by eight per cent and be anticonservative in exactly the tail that matters.</p>
+      <div class="panel sunk" style="margin-top:16px">
+        <div class="tag" style="margin-bottom:10px">why the columns are tied together</div>
+        <svg class="chart" viewBox="0 0 620 150" id="covviz" role="img" aria-label="Illustration of why visit columns at one station share rows"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Attribution is an artefact of the p-value floor</h4><div class="k">3.2 · procedure</div></div>
+    <div><p>The note reports that one alternative splits its "driving statistic" between two of the six, and explains it by a real structural overlap. The overlap is real, but the split is not about sensitivity. Under that alternative one statistic is identically zero &mdash; a value never seen in the null table &mdash; while the other sits below the null minimum. Both p-values are therefore pinned at their floors, and the tie is broken by whether each statistic was declared one-sided or two-sided, which costs a factor of two. Change the null table from 8,000 rows to 20,000 and the attribution flips from 46/47 to 22/77. The step that says "read the driving statistic and adopt the corresponding model" must not run on floored p-values.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>The pooling table had no script</h4><div class="k">3.3 · reproducibility</div></div>
+    <div><p>Every table in the project is supposed to be regenerable by a single script, with no hand-typed numbers. The pooling table was not. It has been reproduced here by inferring the method, and the method should be added to the tool as a flag.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>"Power 1.000 against all alternatives" over-claims</h4><div class="k">3.4 · framing</div></div>
+    <div><p>True, and also a statement about five alternatives chosen by the same author who chose the statistics. One of them is a rejection-sampling construction rather than anything a controller would plausibly implement. The design note is careful about this; the summary that reached the work plan is not. Two plausible alternatives against which the battery is weak or blind are quantified in <a href="#reuse">section six</a> and in the limitations below.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Smaller things</h4><div class="k">3.5 · assorted</div></div>
+    <div><p>The min-p calibration is documented as leave-one-out but includes each row in its own reference set, an O(1/n) discrepancy that the large calibration check shows is harmless. One statistic is a strict subset of another and adds little unless opening-slot effects are specifically suspected. A remark about needing a fifteen-symbol alphabet for machine-level analysis is superfluous, since within a station machine role and direction class are the same thing. And the data protocol needs to record firing order, because the alternatives that matter most only exist in it.</p></div>
+  </div>
+</div>
+</section>
+
+<!-- ===================== LIMITATIONS ===================== -->
+<section id="limits">
+<div class="wrap">
+  <div class="eyebrow">the honest part</div>
+  <h2 style="font-size:34px">Why a precise prediction model cannot be built</h2>
+  <p class="lede">Everything above is real and reproducible. None of it adds up to a system that tells an athlete which machine is about to fire. The obstacles are not engineering gaps that more data or a bigger model would close; several of them are structural, and one of them is a theorem. This section exists so the results above are never quoted without it.</p>
+
+  <div class="lim">
+    <div><h4>If the controller is clean there is nothing to find</h4><div class="k">01 · a ceiling, not a benchmark</div></div>
+    <div><p>Under independent uniform draws the five station urns factorise: no information passes between stations, no athlete's targets say anything about any other's, and the best possible predictor is the one that counts what it has already seen. That ceiling is 60.7 per cent and it is a theorem, not a state of the art. A model that reaches it has added exactly nothing, and on a clean controller the whole apparatus on this page performs 0.1 percentage points <em>worse</em> than counting in your head, because it pays a small price for entertaining hypotheses that turn out to be false.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Weak contamination is effectively invisible</h4><div class="k">02 · the regime that matters most</div></div>
+    <div><p>The realistic failure of a controller is not a pure scheme, it is a slight tilt. At a quarter strength the evidence rate is 0.57 to 1.4 nats per round, so distinguishing that controller from a clean one needs four to nine rounds <em>at the same range under the same settings</em> &mdash; and prediction gains at that level are 1 to 2 percentage points, which is inside the noise of a single athlete's day. Worse, pooling helps more slowly than intuition suggests: one alternative sits at the size of the test at k = 1 and does not reliably improve through k = 5.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>The library is finite, and reality is not</h4><div class="k">03 · unmodelled alternatives</div></div>
+    <div><p>Seven families are implemented. A controller could implement something none of them captures &mdash; a linear congruential generator with a short period, a balanced incomplete block design, a hand-written schedule with human quirks &mdash; in which case power is unknown rather than high. The prequential score partly protects against this, since a wrong model that predicts better than counting is still evidence of structure, but "we tested the alternatives we thought of" is the honest description of every result on this page.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Direction class is not a trajectory</h4><div class="k">04 · the prediction is coarse</div></div>
+    <div><p>Everything here predicts one of three labels. A left target can be anything across a wide fan of angles, at a range of heights, with speed varying by machine and by how recently its spring was set. Knowing "left" does not tell you where to hold. Converting a direction prediction into an aiming decision requires the per-machine calibration, the ballistic model and the vision pipeline &mdash; all of which are separate unvalidated projects, each with its own error budget that compounds on top of this one.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Nothing here is stationary</h4><div class="k">05 · the model does not transfer</div></div>
+    <div><p>Machine settings change between rounds and between days. Spring tension decays across a session, so the same machine throws differently in the afternoon. Controllers differ by manufacturer and firmware. Whatever is learned at one range under one configuration has no guarantee of holding at the next, which means the evidence clock resets far more often than the "rounds needed" table implies, and cross-range validation &mdash; not cross-round &mdash; is the number that would matter.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Ground truth is expensive and video is not a substitute</h4><div class="k">06 · the data problem</div></div>
+    <div><p>Reliable labels come from a controller log, which requires cooperation from a range. Coding from video yields direction class at best, never machine identity, and needs a coder agreement threshold demonstrated on held-out footage before any of it can be used. Irregular targets, repeats and malfunctions all have to be reconciled against the firing order by hand. There is no scraping route to a large clean dataset here.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Even perfect identification leaves you probabilistic</h4><div class="k">07 · the best case is not certainty</div></div>
+    <div><p>Identify a master-plus-offset controller with certainty and the accuracy still only reaches 76.8 per cent over the round, because the master ordering itself is unknown until enough of the squad has fired. The only path to near-certainty is an exact repeat of a whole round from a scheme library &mdash; a specific, checkable, and quite possibly absent behaviour. Structure bounds the uncertainty; it does not remove it.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Information arrives after it is useful</h4><div class="k">08 · the timing problem</div></div>
+    <div><p>The model's accuracy climbs across the round: block 1 is near chance, block 4 is where the gains sit. An athlete shooting first at a station has the least information; by the time the posterior is sharp, most of the round is over. Combining the prior with a vision system does not fix this either, since a prediction has to arrive inside the break window, and coupling the two means a failure of the independence assumption silently corrupts the vision results too.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>Analytic freedom is the largest single risk</h4><div class="k">09 · the researcher, not the model</div></div>
+    <div><p>Statistics chosen after seeing data lose their calibration; a library extended after a rejection is no longer a fair test; a holdout split at random rather than by range, scheme and session will report a number that does not survive contact with a new range. With this many degrees of freedom, an unregistered analysis will produce an inflated result with near certainty. Pre-registration and label-shuffle checks are not ceremony here, they are the load-bearing controls.</p></div>
+  </div>
+
+  <div class="lim">
+    <div><h4>And the intended use is offline</h4><div class="k">10 · scope</div></div>
+    <div><p>This is built as an audit and training-analysis instrument: a measurement of how much predictive information a given release controller leaks, in accuracy points above 60.7 per cent, computed after the fact from a log. It is not designed for, and should not be used as, an aid during competition. The value that scales is the audit itself &mdash; a fixed data schema, an identification engine, a predictability score and a registry of scheme fingerprints per range &mdash; which makes controller randomness a measurable property rather than an assumption.</p></div>
+  </div>
+</div>
+</section>
+
+<!-- ===================== REPO ===================== -->
+<section id="repo">
+<div class="wrap">
+  <div class="eyebrow">running it yourself</div>
+  <h2 style="font-size:32px">The repository</h2>
+  <div class="grid2" style="align-items:start;margin-top:20px">
+    <div>
+      <p>Everything on this page is regenerable. The site reimplements the generators, the model library and the battery in JavaScript so the simulations run live; the Python in <code>src/</code> is the reference implementation that produced every static table.</p>
+      <div class="panel sunk mono" style="font-size:12.5px;line-height:1.85;color:var(--body)">
+trap-controller-audit/<br>
+├─ README.md<br>
+├─ docs/<br>
+│&nbsp;&nbsp;├─ verification-and-v2.md &nbsp;<span style="color:var(--faint)">the full report</span><br>
+│&nbsp;&nbsp;└─ source-context.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--faint)">what came before</span><br>
+├─ src/<br>
+│&nbsp;&nbsp;├─ trap_controller_inference.py<br>
+│&nbsp;&nbsp;└─ single_round_independence_test.py<br>
+├─ verification/<br>
+│&nbsp;&nbsp;├─ verify_moments.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--faint)">closed forms</span><br>
+│&nbsp;&nbsp;├─ size_check.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--faint)">calibration</span><br>
+│&nbsp;&nbsp;├─ verify_pooling.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--faint)">pooled power</span><br>
+│&nbsp;&nbsp;├─ run_all.sh<br>
+│&nbsp;&nbsp;└─ logs/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--faint)">every run behind the tables</span><br>
+└─ site/index.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--faint)">this page, self-contained</span>
+      </div>
+    </div>
+    <div>
+      <h3 style="font-size:20px;margin-bottom:10px">Commands</h3>
+      <div class="panel sunk mono" style="font-size:12.5px;line-height:2;color:var(--body)">
+<span style="color:var(--faint)"># identification, prediction, scheme reuse</span><br>
+python src/trap_controller_inference.py --demo<br><br>
+<span style="color:var(--faint)"># the original battery, calibration and power</span><br>
+python src/single_round_independence_test.py --demo<br><br>
+<span style="color:var(--faint)"># test one real round</span><br>
+python src/single_round_independence_test.py --file round.csv<br><br>
+<span style="color:var(--faint)"># regenerate every verification log</span><br>
+bash verification/run_all.sh
+      </div>
+      <h3 style="font-size:20px;margin:24px 0 10px">Real data</h3>
+      <p class="small">A round is a CSV with one row per athlete-station and columns <code>athlete, station, v1…v5</code>, entries L, S or R. For the Bayesian tool, pass a 6 × 5 × 5 integer array with 0 = L, 1 = S, 2 = R to <code>run_round</code>, together with the firing order. Rows that are not permutations of {L, L, S, R, R} fail loudly rather than being tested, because a violation means the null is misspecified rather than merely false.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p style="max-width:70ch">Simulation study only. No real controller data has been analysed here, and no claim is made about any particular range, manufacturer or event. Every figure on this page comes from the scripts in the repository, with seeds recorded.</p>
+  </div>
+</footer>
+
+<script>
+"use strict";
+/* ============================================================
+   ENGINE — ports the Python reference implementation
+   labels: 0 = L, 1 = S, 2 = R
+   ============================================================ */
+const LAB = ['L','S','R'], COL = ['#48B6DC','#EFE2C0','#E5718E'];
+const N_ORD = 30;
+
+const ORD = (() => {
+  const out = new Set();
+  const rec = (rest, cur) => {
+    if (!rest.length) { out.add(cur.join('')); return; }
+    for (let i = 0; i < rest.length; i++) rec(rest.slice(0,i).concat(rest.slice(i+1)), cur.concat(rest[i]));
+  };
+  rec([0,0,1,2,2], []);
+  return [...out].sort().map(s => s.split('').map(Number));
+})();
+
+const shift = (o,k) => o.map((_,i) => o[(i+k)%5]);
+const ORBIT_OF = new Int8Array(N_ORD).fill(-1);
+const ORBITS = [];
+ORD.forEach((o,i) => {
+  if (ORBIT_OF[i] >= 0) return;
+  const j = ORBITS.length; const members = [];
+  for (let k = 0; k < 5; k++) {
+    const key = shift(o,k).join('');
+    const idx = ORD.findIndex(p => p.join('') === key);
+    ORBIT_OF[idx] = j; members.push(idx);
+  }
+  ORBITS.push(members);
+});
+const ORBIT_MASK = ORBITS.map(m => { const a = new Uint8Array(N_ORD); m.forEach(i => a[i] = 1); return a; });
+const CLEAN = new Uint8Array(N_ORD);
+ORD.forEach((o,i) => { CLEAN[i] = o.every((v,k) => k === 4 || v !== o[k+1]) ? 1 : 0; });
+const N_CLEAN = CLEAN.reduce((a,b) => a+b, 0);            // 12
+const POS = [];                                            // POS[v][x] -> Uint8Array(30)
+for (let v = 0; v < 5; v++) { POS.push([]); for (let x = 0; x < 3; x++) { const a = new Uint8Array(N_ORD); ORD.forEach((o,i) => a[i] = o[v] === x ? 1 : 0); POS[v].push(a); } }
+
+const FIRING = [];
+for (let n = 0; n < 150; n++) FIRING.push([n % 6, n % 5, Math.floor(n / 30)]);
+const idx3 = (a,s,v) => a*25 + s*5 + v;
+
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const pick = (rng,n) => Math.floor(rng()*n);
+
+/* ---------- generators ---------- */
+function put(R,a,s,o) { for (let v = 0; v < 5; v++) R[idx3(a,s,v)] = o[v]; }
+
+function genNull(rng) { const R = new Int8Array(150); for (let a=0;a<6;a++) for (let s=0;s<5;s++) put(R,a,s,ORD[pick(rng,N_ORD)]); return R; }
+function genShared(rng,lam) { const R = new Int8Array(150); for (let s=0;s<5;s++){ const m = ORD[pick(rng,N_ORD)]; for (let a=0;a<6;a++) put(R,a,s, rng()<lam ? m : ORD[pick(rng,N_ORD)]); } return R; }
+function genMasterOffset(rng,lam) { const R = new Int8Array(150); for (let s=0;s<5;s++){ const m = ORD[pick(rng,N_ORD)]; for (let a=0;a<6;a++) put(R,a,s, rng()<lam ? shift(m,a%5) : ORD[pick(rng,N_ORD)]); } return R; }
+function genNoAdj(rng,lam) { const clean = ORD.filter((_,i)=>CLEAN[i]); const R = new Int8Array(150); for (let a=0;a<6;a++) for (let s=0;s<5;s++){ const pool = rng()<lam ? clean : ORD; put(R,a,s,pool[pick(rng,pool.length)]); } return R; }
+function genCross(rng,lam) { const R = new Int8Array(150); for (let a=0;a<6;a++){ const b = ORD[pick(rng,N_ORD)]; for (let s=0;s<5;s++) put(R,a,s, rng()<lam ? b : ORD[pick(rng,N_ORD)]); } return R; }
+function genFiring(rng,lam) {
+  const R = new Int8Array(150).fill(-1);
+  const urn = []; for (let a=0;a<6;a++){ urn.push([]); for (let s=0;s<5;s++) urn[a].push([2,1,2]); }
+  const last = [-1,-1,-1,-1,-1];
+  for (const [a,s,v] of FIRING) {
+    const c = urn[a][s].slice(); const w = c.slice();
+    if (last[s] >= 0) w[last[s]] *= (1-lam);
+    let tot = w[0]+w[1]+w[2]; const use = tot > 0 ? w : c; tot = use[0]+use[1]+use[2];
+    let u = rng()*tot, x = 0; while (x < 2 && u > use[x]) { u -= use[x]; x++; }
+    R[idx3(a,s,v)] = x; urn[a][s][x]--; last[s] = x;
+  }
+  return R;
+}
+const GENS = { M0:(r)=>genNull(r), A1:genShared, A2:genMasterOffset, A4:genNoAdj, A5:genCross, A7:genFiring };
+function generate(kind, lam, seed) { const rng = mulberry32(seed >>> 0); return kind === 'M0' ? genNull(rng) : GENS[kind](rng, lam); }
+
+/* ---------- state ---------- */
+function newState() {
+  const mask = []; for (let i=0;i<30;i++) mask.push(new Uint8Array(N_ORD).fill(1));
+  const urn = []; for (let a=0;a<6;a++){ urn.push([]); for (let s=0;s<5;s++) urn[a].push([2,1,2]); }
+  return { mask, urn, last:[-1,-1,-1,-1,-1], obs:new Int8Array(150).fill(-1), n:0 };
+}
+const mi = (a,s) => a*5 + s;
+function cnt(m) { let c = 0; for (let i=0;i<N_ORD;i++) c += m[i]; return c; }
+function andMask(m,p) { const o = new Uint8Array(N_ORD); for (let i=0;i<N_ORD;i++) o[i] = m[i] & p[i]; return o; }
+function applyShot(st,a,s,v,x) { const m = st.mask[mi(a,s)]; const p = POS[v][x]; for (let i=0;i<N_ORD;i++) m[i] &= p[i]; st.urn[a][s][x]--; st.last[s] = x; st.obs[idx3(a,s,v)] = x; st.n++; }
+
+/* ---------- models ---------- */
+function pM0(st,a,s,v) { const m = st.mask[mi(a,s)]; const tot = cnt(m) || 1; const w = [0,0,0]; for (let x=0;x<3;x++) w[x] = cnt(andMask(m,POS[v][x]))/tot; return norm(w); }
+function norm(w) { const t = w[0]+w[1]+w[2]; return t > 0 ? [w[0]/t,w[1]/t,w[2]/t] : [1/3,1/3,1/3]; }
+
+function pA1(st,a,s,v,lam) {
+  const others = new Float64Array(N_ORD).fill(1);
+  for (let b=0;b<6;b++) { if (b===a) continue; const m = st.mask[mi(b,s)]; const c = cnt(m)/N_ORD; for (let i=0;i<N_ORD;i++) others[i] *= lam*m[i] + (1-lam)*c; }
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const mx = andMask(ma,POS[v][x]); const c = cnt(mx)/N_ORD; let acc = 0; for (let i=0;i<N_ORD;i++) acc += others[i]*(lam*mx[i] + (1-lam)*c); w[x] = acc/N_ORD; }
+  return norm(w);
+}
+function orbVec(m,lam) { const v = new Float64Array(6); const c = cnt(m)/N_ORD; for (let j=0;j<6;j++){ let k=0; const om=ORBIT_MASK[j]; for (let i=0;i<N_ORD;i++) k += m[i]&om[i]; v[j] = lam*(k/5) + (1-lam)*c; } return v; }
+function pA2o(st,a,s,v,lam) {
+  const others = new Float64Array(6).fill(1);
+  for (let b=0;b<6;b++) { if (b===a) continue; const ov = orbVec(st.mask[mi(b,s)],lam); for (let j=0;j<6;j++) others[j] *= ov[j]; }
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const ov = orbVec(andMask(ma,POS[v][x]),lam); let acc = 0; for (let j=0;j<6;j++) acc += others[j]*ov[j]; w[x] = acc/6; }
+  return norm(w);
+}
+function pA4(st,a,s,v,lam) {
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const mx = andMask(ma,POS[v][x]); let c = 0; for (let i=0;i<N_ORD;i++) c += mx[i]&CLEAN[i]; w[x] = lam*(c/N_CLEAN) + (1-lam)*(cnt(mx)/N_ORD); }
+  return norm(w);
+}
+function pA5(st,a,s,v,lam) {
+  const others = new Float64Array(N_ORD).fill(1);
+  for (let t=0;t<5;t++) { if (t===s) continue; const m = st.mask[mi(a,t)]; const c = cnt(m)/N_ORD; for (let i=0;i<N_ORD;i++) others[i] *= lam*m[i] + (1-lam)*c; }
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const mx = andMask(ma,POS[v][x]); const c = cnt(mx)/N_ORD; let acc = 0; for (let i=0;i<N_ORD;i++) acc += others[i]*(lam*mx[i] + (1-lam)*c); w[x] = acc/N_ORD; }
+  return norm(w);
+}
+function pA7(st,a,s,v,lam) {
+  const c = st.urn[a][s].slice(); const w = c.slice();
+  if (st.last[s] >= 0) w[st.last[s]] *= (1-lam);
+  return (w[0]+w[1]+w[2]) > 0 ? norm(w) : norm(c);
+}
+
+const LAMS = [0.25,0.5,0.75,1.0];
+const FAMS = ['M0','A1','A2o','A4','A5','A7'];
+const FAM_LABEL = { M0:'clean', A1:'A1 shared', A2o:'A2 master+offset', A4:'A4 no repeat', A5:'A5 cross-station', A7:'A7 firing order' };
+const FAM_COL = { M0:'#7E9599', A1:'#48B6DC', A2o:'#F0B429', A4:'#7BC47F', A5:'#E5718E', A7:'#B99BE8' };
+const MODELS = [{ fam:'M0', lam:null, f:pM0, prior:0.5 }];
+[['A1',pA1],['A2o',pA2o],['A4',pA4],['A5',pA5],['A7',pA7]].forEach(([fam,f]) => {
+  LAMS.forEach(l => MODELS.push({ fam, lam:l, f:(st,a,s,v)=>f(st,a,s,v,l), prior:0.5/5/LAMS.length }));
+});
+const LOGPRIOR = MODELS.map(m => Math.log(m.prior));
+
+/* ---------- runner ---------- */
+class Runner {
+  constructor(R) { this.R = R; this.st = newState(); this.i = 0; this.ll = new Float64Array(MODELS.length); this.hitC = 0; this.hitM = 0; this.llC = 0; this.llM = 0; this.hist = []; this.blocksC = [0,0,0,0,0]; this.blocksM = [0,0,0,0,0]; }
+  get done() { return this.i >= 150; }
+  peek() { const [a,s,v] = FIRING[this.i]; return { a, s, v, i:this.i }; }
+  weights() { const lw = MODELS.map((m,j) => LOGPRIOR[j] + this.ll[j]); const mx = Math.max(...lw); const w = lw.map(x => Math.exp(x - mx)); const t = w.reduce((p,q)=>p+q,0); return w.map(x => x/t); }
+  famPost() { const w = this.weights(); const out = {}; FAMS.forEach(f => out[f] = 0); MODELS.forEach((m,j) => out[m.fam] += w[j]); return out; }
+  predictive() {
+    const [a,s,v] = FIRING[this.i]; const P = MODELS.map(m => m.f(this.st,a,s,v)); const w = this.weights();
+    const mix = [0,0,0]; for (let j=0;j<MODELS.length;j++) for (let x=0;x<3;x++) mix[x] += w[j]*P[j][x];
+    return { P, mix:norm(mix), base:P[0], a, s, v };
+  }
+  step() {
+    if (this.done) return null;
+    const { P, mix, base, a, s, v } = this.predictive();
+    const x = this.R[idx3(a,s,v)]; const b = Math.floor(this.i/30);
+    const cHit = argmax(base) === x, mHit = argmax(mix) === x;
+    this.hitC += cHit; this.hitM += mHit; this.blocksC[b] += cHit; this.blocksM[b] += mHit;
+    this.llC += -Math.log(Math.max(base[x],1e-300)); this.llM += -Math.log(Math.max(mix[x],1e-300));
+    for (let j=0;j<MODELS.length;j++) this.ll[j] += Math.log(Math.max(P[j][x],1e-300));
+    applyShot(this.st,a,s,v,x); this.i++;
+    const post = this.famPost();
+    const rec = { a, s, v, x, mix, base, post, cHit, mHit, i:this.i, lbf:this.lbf() };
+    this.hist.push(rec); return rec;
+  }
+  lbf() {  // log Bayes factor: best alternative family against clean
+    let best = -Infinity;
+    FAMS.slice(1).forEach(f => { const idxs = MODELS.map((m,j)=>[m,j]).filter(([m])=>m.fam===f).map(([,j])=>j);
+      const mx = Math.max(...idxs.map(j=>this.ll[j])); const s = Math.log(idxs.reduce((p,j)=>p+Math.exp(this.ll[j]-mx),0)) + mx - Math.log(idxs.length);
+      best = Math.max(best, s - this.ll[0]); });
+    return best;
+  }
+}
+const argmax = a => a[0] >= a[1] ? (a[0] >= a[2] ? 0 : 2) : (a[1] >= a[2] ? 1 : 2);
+
+/* ============================================================
+   BATTERY — the six statistics and their Monte Carlo null
+   ============================================================ */
+const MARG = [0.4,0.2,0.4];
+function rowsOf(R) { const out = []; for (let a=0;a<6;a++) for (let s=0;s<5;s++) { const r = []; for (let v=0;v<5;v++) r.push(R[idx3(a,s,v)]); out.push(r); } return out; }
+function statS1(R){ let c=0; for(let s=0;s<5;s++){ const rows=[]; for(let a=0;a<6;a++){const r=[];for(let v=0;v<5;v++)r.push(R[idx3(a,s,v)]);rows.push(r.join(''));} for(let i=0;i<6;i++)for(let j=i+1;j<6;j++) if(rows[i]===rows[j])c++; } return c; }
+function ordIndexOf(arr){ const k=arr.join(''); return ORD.findIndex(o=>o.join('')===k); }
+function statS2(R){ let t=0; for(let s=0;s<5;s++){ const set=new Set(); for(let a=0;a<6;a++){const r=[];for(let v=0;v<5;v++)r.push(R[idx3(a,s,v)]); set.add(ORBIT_OF[ordIndexOf(r)]);} t+=set.size; } return t; }
+function statS3(R){ let t=0; for(let s=0;s<5;s++) for(let v=0;v<5;v++){ const o=[0,0,0]; for(let a=0;a<6;a++) o[R[idx3(a,s,v)]]++; for(let x=0;x<3;x++){const e=6*MARG[x]; t+=(o[x]-e)*(o[x]-e)/e;} } return t; }
+function statS4(R){ let c=0; for(let a=0;a<6;a++) for(let s=0;s<5;s++) for(let v=0;v<4;v++) if(R[idx3(a,s,v)]===R[idx3(a,s,v+1)])c++; return c; }
+function statS5(R){ let c=0; for(let a=0;a<6;a++){ const rows=[]; for(let s=0;s<5;s++){const r=[];for(let v=0;v<5;v++)r.push(R[idx3(a,s,v)]);rows.push(r.join(''));} for(let i=0;i<5;i++)for(let j=i+1;j<5;j++) if(rows[i]===rows[j])c++; } return c; }
+function statS6(R){ let t=0; for(let s=0;s<5;s++){ const o=[0,0,0]; for(let a=0;a<6;a++) o[R[idx3(a,s,0)]]++; for(let x=0;x<3;x++){const e=6*MARG[x]; t+=(o[x]-e)*(o[x]-e)/e;} } return t; }
+const STATS = [
+  { k:'S1', f:statS1, side:'high', name:'S1 identical pairs, within station', det:'one sequence reused across athletes' },
+  { k:'S2', f:statS2, side:'low',  name:'S2 distinct cyclic orbits', det:'master ordering with per-athlete offset' },
+  { k:'S3', f:statS3, side:'two',  name:'S3 column dispersion', det:'per-slot balancing, or clustering' },
+  { k:'S4', f:statS4, side:'two',  name:'S4 adjacent repeats within row', det:'within-row constraints' },
+  { k:'S5', f:statS5, side:'high', name:'S5 identical pairs, within athlete', det:'cross-station coupling' },
+  { k:'S6', f:statS6, side:'two',  name:'S6 first-target concentration', det:'all athletes seeded from one draw' },
+];
+let NULLTAB = null;
+function buildNullTable(n, seed, onDone, onProgress) {
+  const rng = mulberry32(seed >>> 0); const cols = STATS.map(() => new Float64Array(n)); let i = 0;
+  const chunk = () => {
+    const end = Math.min(i + 250, n);
+    for (; i < end; i++) { const R = genNull(rng); STATS.forEach((s,j) => cols[j][i] = s.f(R)); }
+    if (onProgress) onProgress(i/n);
+    if (i < n) setTimeout(chunk, 0);
+    else { const sorted = cols.map(c => Float64Array.from(c).sort()); NULLTAB = { n, cols, sorted, minp: minpNull(cols, sorted, n) }; onDone(); }
+  };
+  chunk();
+}
+const leCount = (sorted,x) => { let lo=0,hi=sorted.length; while(lo<hi){const m=(lo+hi)>>1; if(sorted[m]<=x)lo=m+1;else hi=m;} return lo; };
+const geCount = (sorted,x) => { let lo=0,hi=sorted.length; while(lo<hi){const m=(lo+hi)>>1; if(sorted[m]<x)lo=m+1;else hi=m;} return sorted.length-lo; };
+function pOf(j,val){ const s=NULLTAB.sorted[j], n=NULLTAB.n, side=STATS[j].side;
+  if(side==='high') return (geCount(s,val)+1)/(n+1);
+  if(side==='low')  return (leCount(s,val)+1)/(n+1);
+  return Math.min(1, 2*Math.min((geCount(s,val)+1)/(n+1), (leCount(s,val)+1)/(n+1))); }
+function minpNull(cols,sorted,n){ const mins=new Float64Array(n).fill(1);
+  STATS.forEach((st,j)=>{ for(let i=0;i<n;i++){ const v=cols[j][i]; let p;
+    if(st.side==='high') p=(geCount(sorted[j],v)+1)/(n+1);
+    else if(st.side==='low') p=(leCount(sorted[j],v)+1)/(n+1);
+    else p=Math.min(1,2*Math.min((geCount(sorted[j],v)+1)/(n+1),(leCount(sorted[j],v)+1)/(n+1)));
+    if(p<mins[i]) mins[i]=p; } });
+  return Float64Array.from(mins).sort(); }
+function batteryOn(R){ const obs=STATS.map(s=>s.f(R)); const ps=obs.map((v,j)=>pOf(j,v));
+  const mp=Math.min(...ps); const mn=NULLTAB.minp; const gp=(leCount(mn,mp)+1)/(mn.length+1);
+  const mean=STATS.map((_,j)=>{let t=0;for(let i=0;i<NULLTAB.n;i++)t+=NULLTAB.cols[j][i];return t/NULLTAB.n;});
+  const sd=STATS.map((_,j)=>{let t=0;for(let i=0;i<NULLTAB.n;i++){const d=NULLTAB.cols[j][i]-mean[j];t+=d*d;}return Math.sqrt(t/NULLTAB.n);});
+  return { obs, ps, mp, gp, mean, sd }; }
+
+/* ============================================================
+   SVG helpers
+   ============================================================ */
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+
+/* ============================================================
+   THE URN VISUAL
+   ============================================================ */
+(function urnviz(){
+  const g = document.getElementById('urnviz'); if (!g) return;
+  const acc = [0.4, 0.4667, 0.5556, 0.7111, 1.0];   // optimal per-visit accuracy, exhaustive enumeration
+  const x0 = 52, y0 = 26, w = 380, h = 168;
+  el('line',{x1:x0,y1:y0+h,x2:x0+w,y2:y0+h,stroke:'rgba(160,195,195,.25)'},g);
+  [0.33,0.5,1].forEach(t=>{ const y=y0+h-(t-0.3)/0.72*h; el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'rgba(160,195,195,.10)','stroke-dasharray':'2 4'},g);
+    const tx=el('text',{x:x0-8,y:y+3,'text-anchor':'end'},g); tx.textContent=(t*100).toFixed(0)+'%'; });
+  const bw = w/5*0.56;
+  acc.forEach((a,i)=>{ const cx = x0 + w/5*(i+0.5); const y = y0+h-(a-0.3)/0.72*h;
+    el('rect',{x:cx-bw/2,y:y,width:bw,height:y0+h-y,fill:'#F0B429','fill-opacity':i===4?.9:.45},g);
+    const t1=el('text',{x:cx,y:y-7,'text-anchor':'middle',fill:'#E9F0ED'},g); t1.textContent=(a*100).toFixed(1);
+    const t2=el('text',{x:cx,y:y0+h+15,'text-anchor':'middle'},g); t2.textContent='visit '+(i+1); });
+  const lab=el('text',{x:x0+w,y:y0-8,'text-anchor':'end',fill:'#83999A'},g); lab.textContent='round average 60.7%';
+})();
+
+/* ============================================================
+   CONSOLE
+   ============================================================ */
+const board = document.getElementById('board');
+const cells = [];
+(function buildBoard(){
+  const blank = document.createElement('div'); blank.className='hd'; board.appendChild(blank);
+  for (let s=0;s<5;s++){ const d=document.createElement('div'); d.className='hd'; d.textContent='station '+(s+1); board.appendChild(d); }
+  for (let a=0;a<6;a++){
+    const rl=document.createElement('div'); rl.className='rl'; rl.textContent='athlete '+(a+1); board.appendChild(rl);
+    for (let s=0;s<5;s++){
+      const strip=document.createElement('div'); strip.className='strip';
+      for (let v=0;v<5;v++){
+        const c=document.createElement('div'); c.className='cell'; c.title='athlete '+(a+1)+', station '+(s+1)+', visit '+(v+1);
+        for (let x=0;x<3;x++){ const seg=document.createElement('div'); seg.className='seg'; seg.style.background=COL[x]; seg.style.opacity='.30'; seg.style.height=(x===1?20:40)+'%'; c.appendChild(seg); }
+        const gl=document.createElement('span'); gl.className='glyph'; c.appendChild(gl);
+        strip.appendChild(c); cells[idx3(a,s,v)]=c;
+      }
+      board.appendChild(strip);
+    }
+  }
+})();
+
+let runner = null, timer = null, curR = null;
+const $ = id => document.getElementById(id);
+
+function paintCellPredictive(a,s,v){
+  const c = cells[idx3(a,s,v)]; if (c.classList.contains('fired')) return;
+  const p = pM0(runner.st,a,s,v);
+  [...c.querySelectorAll('.seg')].forEach((seg,x)=>{ seg.style.height = (p[x]*100)+'%'; seg.style.opacity = p[x] > 0.99 ? '.85' : '.30'; });
+}
+function repaintUnfired(){ for (let a=0;a<6;a++) for (let s=0;s<5;s++) for (let v=0;v<5;v++) paintCellPredictive(a,s,v); }
+
+function setNextHighlight(){
+  document.querySelectorAll('.cell.next').forEach(c=>c.classList.remove('next'));
+  if (runner.done) {
+    $('nextlabel').textContent = 'round complete · 150 targets · press reset or change the controller to run another';
+    const bar = $('nextbar'); clearChildren(bar);
+    const d = document.createElement('div'); d.style.flexBasis='100%'; d.style.background='var(--sunk)'; d.style.color='var(--faint)';
+    d.textContent = 'no target pending'; bar.appendChild(d); return;
+  }
+  const { a,s,v,i } = runner.peek();
+  cells[idx3(a,s,v)].classList.add('next');
+  const pr = runner.predictive();
+  const bar = $('nextbar'); clearChildren(bar);
+  [0,1,2].forEach(x=>{ const d=document.createElement('div'); d.style.flexBasis=(pr.mix[x]*100)+'%'; d.style.background=COL[x];
+    d.textContent = pr.mix[x] > 0.09 ? LAB[x]+' '+Math.round(pr.mix[x]*100)+'%' : ''; bar.appendChild(d); });
+  $('nextlabel').textContent = 'shot '+(i+1)+' · athlete '+(a+1)+' · station '+(s+1)+' · visit '+(v+1)+'   ·   counting says '+LAB[argmax(pr.base)]+' '+Math.round(Math.max(...pr.base)*100)+'%';
+}
+function clearChildren(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+
+function drawPosterior(){
+  const svg = $('poststack'); clear(svg);
+  const W=620,H=190,x0=34,y0=10,w=W-x0-8,h=H-y0-24;
+  el('rect',{x:x0,y:y0,width:w,height:h,fill:'#0A1012',stroke:'rgba(160,195,195,.14)'},svg);
+  const n = runner.hist.length;
+  for (let i=0;i<n;i++){
+    const post = runner.hist[i].post; let acc = 0;
+    const bw = w/150, bx = x0 + i*bw;
+    FAMS.forEach(f=>{ const v = post[f]; if (v <= 0.0008) { acc += v; return; }
+      el('rect',{x:bx,y:y0+h-(acc+v)*h,width:Math.max(bw,0.9),height:v*h,fill:FAM_COL[f]},svg); acc += v; });
+  }
+  [0.5,1].forEach(t=>{ const y=y0+h-t*h; el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'rgba(160,195,195,.18)','stroke-dasharray':'2 4'},svg);
+    const tx=el('text',{x:x0-6,y:y+3,'text-anchor':'end'},svg); tx.textContent=t.toFixed(1); });
+  [0,30,60,90,120,150].forEach(k=>{ const tx=el('text',{x:x0+w*k/150,y:H-8,'text-anchor':'middle'},svg); tx.textContent=k; });
+  const lg=$('postlegend'); clearChildren(lg);
+  FAMS.forEach(f=>{ const s=document.createElement('span'); s.innerHTML='<i style="background:'+FAM_COL[f]+'"></i>'+FAM_LABEL[f]; lg.appendChild(s); });
+}
+function drawAccCurve(){
+  const svg = $('acccurve'); clear(svg);
+  const W=620,H=170,x0=34,y0=10,w=W-x0-8,h=H-y0-24;
+  el('rect',{x:x0,y:y0,width:w,height:h,fill:'#0A1012',stroke:'rgba(160,195,195,.14)'},svg);
+  const yy = v => y0 + h - (v-0.2)/0.85*h;
+  [0.333,0.607,1].forEach((t,i)=>{ const y=yy(t); el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:i===1?'rgba(240,180,41,.45)':'rgba(160,195,195,.15)','stroke-dasharray':'3 4'},svg);
+    const tx=el('text',{x:x0-6,y:y+3,'text-anchor':'end',fill:i===1?'#F0B429':'#5C7175'},svg); tx.textContent=(t*100).toFixed(0)+'%'; });
+  const mk=(key,colr)=>{ let c=0; const pts=[]; runner.hist.forEach((r,i)=>{ c += r[key]?1:0; if(i>=4) pts.push([x0+w*(i+1)/150, yy(c/(i+1))]); });
+    if(pts.length>1) el('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:colr,'stroke-width':2},svg); };
+  mk('cHit','#7E9599'); mk('mHit','#F0B429');
+  const l1=el('text',{x:x0+w-4,y:y0+14,'text-anchor':'end',fill:'#F0B429'},svg); l1.textContent='model';
+  const l2=el('text',{x:x0+w-4,y:y0+27,'text-anchor':'end',fill:'#7E9599'},svg); l2.textContent='counting';
+  [0,30,60,90,120,150].forEach(k=>{ const tx=el('text',{x:x0+w*k/150,y:H-8,'text-anchor':'middle'},svg); tx.textContent=k; });
+}
+function updateReadouts(){
+  const n = runner.i;
+  $('r-shots').textContent = n;
+  $('r-count').textContent = n ? (100*runner.hitC/n).toFixed(1)+'%' : '—';
+  $('r-mix').textContent   = n ? (100*runner.hitM/n).toFixed(1)+'%' : '—';
+  const l = n ? runner.lbf() : 0;
+  const e = $('r-lbf'); e.textContent = (l>0?'+':'') + l.toFixed(1);
+  e.style.color = l > 5 ? '#F0B429' : (l < -1 ? '#7BC47F' : '#E9F0ED');
+}
+function resetConsole(){
+  stop();
+  const kind = $('algo').value, lam = parseFloat($('lam').value), seed = parseInt($('seed').value||'0',10);
+  curR = generate(kind, lam, seed);
+  runner = new Runner(curR);
+  cells.forEach(c=>{ c.classList.remove('fired','next'); c.querySelector('.glyph').textContent=''; c.style.background='var(--sunk)';
+    [...c.querySelectorAll('.seg')].forEach(s=>s.style.display=''); });
+  repaintUnfired(); setNextHighlight(); drawPosterior(); drawAccCurve(); updateReadouts();
+  $('batterytable').querySelector('tbody').innerHTML=''; $('batteryverdict').textContent='';
+}
+function fireOne(){
+  const r = runner.step(); if (!r) { stop(); return false; }
+  const c = cells[idx3(r.a,r.s,r.v)];
+  c.classList.add('fired'); c.style.background = COL[r.x];
+  [...c.querySelectorAll('.seg')].forEach(s=>s.style.display='none');
+  c.querySelector('.glyph').textContent = LAB[r.x];
+  for (let v=0;v<5;v++) paintCellPredictive(r.a,r.s,v);
+  setNextHighlight(); drawPosterior(); drawAccCurve(); updateReadouts();
+  return !runner.done;
+}
+function stop(){ if (timer) { clearInterval(timer); timer = null; } $('play').textContent = 'Fire round'; }
+function play(){
+  if (timer) { stop(); return; }
+  if (runner.done) resetConsole();
+  const sp = parseInt($('speed').value,10);
+  $('play').textContent = 'Pause';
+  if (sp === 0) { while (fireOne()) {} stop(); return; }
+  timer = setInterval(()=>{ if (!fireOne()) stop(); }, sp);
+}
+$('play').addEventListener('click', play);
+$('step').addEventListener('click', ()=>{ stop(); if (runner.done) resetConsole(); else fireOne(); });
+$('reset').addEventListener('click', resetConsole);
+$('algo').addEventListener('change', resetConsole);
+$('seed').addEventListener('change', resetConsole);
+$('lam').addEventListener('input', ()=>{ $('lamv').textContent = parseFloat($('lam').value).toFixed(2); });
+$('lam').addEventListener('change', resetConsole);
+resetConsole();
+
+/* ---------- battery ---------- */
+$('runbattery').addEventListener('click', ()=>{
+  const go = () => {
+    const res = batteryOn(curR);
+    const tb = $('batterytable').querySelector('tbody'); tb.innerHTML='';
+    STATS.forEach((s,j)=>{
+      const z = (res.obs[j]-res.mean[j])/res.sd[j];
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>'+s.name+'</td><td class="dim">'+s.det+'</td><td>'+res.obs[j].toFixed(2)+'</td><td class="dim">'+res.mean[j].toFixed(2)+'</td>'+
+                     '<td class="'+(Math.abs(z)>3?'hi':'')+'">'+(z>0?'+':'')+z.toFixed(2)+'</td>'+
+                     '<td class="'+(res.ps[j]<=0.05?'hi':'')+'">'+res.ps[j].toFixed(4)+'</td>';
+      tb.appendChild(tr);
+    });
+    const drv = STATS[res.ps.indexOf(Math.min(...res.ps))].k;
+    $('batteryverdict').innerHTML = 'family-wise p = <b style="color:'+(res.gp<=0.05?'#F0B429':'#E9F0ED')+'">'+res.gp.toFixed(4)+'</b> · ' +
+      (res.gp<=0.05 ? 'independence rejected, nominal driver '+drv+' (see correction 3.2 on floored p-values)' : 'no evidence against independence from this round') +
+      ' · null table 3,000 rounds, so the smallest reportable p is '+ (1/3001).toFixed(5);
+    $('batterybusy').textContent='';
+  };
+  if (NULLTAB) { $('batterybusy').textContent='running…'; setTimeout(go,10); }
+  else { $('batterybusy').textContent='building null table…';
+    buildNullTable(3000, 12, go, f => { $('batterybusy').textContent = 'building null table… '+Math.round(f*100)+'%'; }); }
+});
+
+/* ============================================================
+   STATIC TABLES
+   ============================================================ */
+const ID_ROWS = [
+  ['clean controller',[0.84,0.03,0.04,0.03,0.03,0.04],'+1.1','0.03','M0'],
+  ['A1 shared, λ=1',[0.00,1.00,0.00,0.00,0.00,0.00],'+83.6','1.00','A1'],
+  ['A1 shared, λ=0.5',[0.00,0.99,0.00,0.00,0.00,0.00],'+16.0','1.00','A1'],
+  ['A2 master+offset, λ=1',[0.00,0.00,1.00,0.00,0.00,0.00],'+43.4','1.00','A2o'],
+  ['A2 master+offset, λ=0.5',[0.20,0.00,0.75,0.02,0.00,0.03],'+4.3','0.64','A2o'],
+  ['A2 master+offset, λ=0.25',[0.72,0.02,0.15,0.03,0.02,0.05],'−1.1','0.12','A2o'],
+  ['A4 no repeat, λ=1',[0.00,0.00,0.00,1.00,0.00,0.00],'+26.1','1.00','A4'],
+  ['A4 no repeat, λ=0.5',[0.18,0.01,0.02,0.77,0.01,0.01],'+3.3','0.57','A4'],
+  ['A5 cross-station, λ=1',[0.00,0.00,0.00,0.00,1.00,0.00],'+80.2','1.00','A5'],
+  ['A5 cross-station, λ=0.5',[0.03,0.00,0.00,0.01,0.96,0.00],'+14.3','0.97','A5'],
+  ['A7 firing order, λ=1',[0.00,0.00,0.00,0.00,0.00,1.00],'+46.2','0.78','A7'],
+  ['A7 firing order, λ=0.5',[0.23,0.00,0.01,0.01,0.01,0.73],'+3.5','0.14','A7'],
+];
+(function(){ const tb=$('idtable');
+  ID_ROWS.forEach(([lab,ps,lbf,rej,truth])=>{ const tr=document.createElement('tr');
+    let h='<td>'+lab+'</td>';
+    FAMS.forEach((f,i)=>{ const v=ps[i]; const isT=f===truth; h+='<td class="'+(isT?'hi':(v<0.01?'dim':''))+'">'+v.toFixed(2)+'</td>'; });
+    h+='<td class="'+(parseFloat(lbf.replace('−','-'))>3?'good':'dim')+'">'+lbf+'</td><td class="dim">'+rej+'</td>';
+    tr.innerHTML=h; tb.appendChild(tr); }); })();
+
+const PRED = [
+ ['clean controller',[0.407,0.500,0.533,0.584,1.000,0.605,0.6802],[0.390,0.500,0.532,0.599,1.000,0.604,0.6836],[0.407,0.500,0.533,0.584,1.000,0.605,0.6802]],
+ ['A1 shared, λ=1',[0.405,0.528,0.523,0.637,1.000,0.618,0.6802],[0.886,0.921,0.922,0.940,1.000,0.934,0.1380],[0.901,0.921,0.920,0.940,1.000,0.936,0.1134]],
+ ['A1 shared, λ=0.5',[0.369,0.511,0.518,0.587,1.000,0.597,0.6802],[0.497,0.613,0.678,0.742,1.000,0.706,0.5797],[0.550,0.633,0.684,0.741,1.000,0.722,0.5582]],
+ ['A2 master+offset, λ=1',[0.403,0.498,0.537,0.599,1.000,0.607,0.6802],[0.396,0.535,0.911,1.000,1.000,0.768,0.4062],[0.403,0.553,0.930,1.000,1.000,0.777,0.3816]],
+ ['A2 master+offset, λ=0.5',[0.409,0.491,0.545,0.592,1.000,0.607,0.6802],[0.394,0.504,0.605,0.768,1.000,0.654,0.6549],[0.409,0.503,0.633,0.783,1.000,0.665,0.6381]],
+ ['A2 master+offset, λ=0.25',[0.391,0.506,0.536,0.592,1.000,0.605,0.6802],[0.390,0.512,0.552,0.648,1.000,0.620,0.6814],[0.391,0.510,0.556,0.652,1.000,0.622,0.6766]],
+ ['A4 no repeat, λ=1',[0.407,0.740,0.511,0.498,1.000,0.631,0.6802],[0.410,0.751,0.675,0.663,1.000,0.700,0.5215],[0.407,0.740,0.679,0.678,1.000,0.701,0.4970]],
+ ['A4 no repeat, λ=0.5',[0.416,0.622,0.509,0.542,1.000,0.618,0.6802],[0.414,0.631,0.588,0.618,1.000,0.650,0.6652],[0.416,0.622,0.591,0.617,1.000,0.649,0.6477]],
+ ['A5 cross-station, λ=1',[0.387,0.515,0.521,0.583,1.000,0.601,0.6802],[0.853,0.905,0.905,0.916,1.000,0.916,0.1606],[0.878,0.903,0.904,0.917,1.000,0.920,0.1360]],
+ ['A5 cross-station, λ=0.5',[0.389,0.500,0.554,0.585,1.000,0.606,0.6802],[0.492,0.591,0.678,0.710,1.000,0.694,0.5957],[0.548,0.622,0.690,0.702,1.000,0.712,0.5746]],
+ ['A7 firing order, λ=1',[0.375,0.418,0.485,0.649,1.000,0.585,0.6802],[0.557,0.652,0.760,0.872,1.000,0.769,0.3891],[0.587,0.647,0.760,0.877,1.000,0.774,0.3645]],
+ ['A7 firing order, λ=0.5',[0.392,0.490,0.535,0.625,1.000,0.608,0.6802],[0.450,0.511,0.560,0.693,1.000,0.643,0.6677],[0.484,0.520,0.557,0.705,1.000,0.653,0.6500]],
+];
+(function(){ const tb=$('predtable'); const table=tb.parentNode;
+  PRED.forEach(([lab,c,m,o])=>{
+    const grp=document.createElement('tbody'); grp.className='grp';
+    [['counting',c,''],['mixture',m,'hi'],['oracle',o,'dim']].forEach(([nm,vals,cls],k)=>{
+      const tr=document.createElement('tr');
+      let h='<td>'+(k===0?lab:'')+'</td><td class="dim">'+nm+'</td>';
+      vals.slice(0,6).forEach(v=>h+='<td class="'+cls+'">'+v.toFixed(3)+'</td>');
+      h+='<td class="'+cls+'">'+vals[6].toFixed(4)+'</td>';
+      tr.innerHTML=h; grp.appendChild(tr); });
+    table.appendChild(grp); });
+  tb.remove(); })();
+
+(function predbars(){
+  const svg=$('predbars'); const rows=PRED.map(p=>[p[0],p[1][5],p[2][5]]);
+  const W=1120,H=350,x0=250,y0=10,w=W-x0-70,h=H-y0-26, bh=h/rows.length;
+  const xx=v=>x0+(v-0.30)/0.70*w;
+  el('line',{x1:x0,y1:y0,x2:x0,y2:y0+h,stroke:'rgba(160,195,195,.25)'},svg);
+  el('line',{x1:xx(0.607),y1:y0,x2:xx(0.607),y2:y0+h,stroke:'rgba(240,180,41,.55)','stroke-dasharray':'3 4'},svg);
+  const cl=el('text',{x:xx(0.607),y:H-8,'text-anchor':'middle',fill:'#F0B429','font-size':'11'},svg); cl.textContent='60.7% counting ceiling';
+  [0.4,0.5,0.7,0.8,0.9,1.0].forEach(v=>{ el('line',{x1:xx(v),y1:y0,x2:xx(v),y2:y0+h,stroke:'rgba(160,195,195,.09)'},svg);
+    const t=el('text',{x:xx(v),y:H-8,'text-anchor':'middle','font-size':'10'},svg); t.textContent=(v*100).toFixed(0)+'%'; });
+  rows.forEach((r,i)=>{
+    const y=y0+i*bh+2;
+    const t=el('text',{x:x0-12,y:y+bh*0.64,'text-anchor':'end',fill:'#C6D4D0','font-size':'11.5'},svg); t.textContent=r[0];
+    el('rect',{x:x0,y:y,width:Math.max(1,xx(r[1])-x0),height:bh*0.36,fill:'#7E9599','fill-opacity':.7},svg);
+    el('rect',{x:x0,y:y+bh*0.42,width:Math.max(1,xx(r[2])-x0),height:bh*0.36,fill:'#F0B429'},svg);
+    const v=el('text',{x:xx(r[2])+7,y:y+bh*0.72,fill:'#E9F0ED','font-size':'11.5'},svg); v.textContent=(r[2]*100).toFixed(1)+'%';
+  });
+})();
+
+
+
+const MOM=[['S1 identical pairs, within station','2.48 (1.54)','2.5000 (1.5546)','75 pairs at probability 1/30'],
+ ['S2 distinct cyclic orbits','19.95 (1.74)','19.9531 (1.7400)','six balls into six boxes, per station'],
+ ['S3 column dispersion','50.02 (10.07)','50 (10.2062)','exact variance 625/6, see correction 3.1'],
+ ['S4 adjacent repeats within row','23.95 (4.10)','24.0000 (4.0988)','exact distribution over the 30 orderings'],
+ ['S5 identical pairs, within athlete','2.00 (1.39)','2.0000 (1.3904)','60 pairs at probability 1/30'],
+ ['S6 first-target concentration','10.06 (4.19)','10 (4.1833)','five independent columns, variance 7/2 each']];
+(function(){ const tb=$('momtable'); MOM.forEach(r=>{ const tr=document.createElement('tr');
+  tr.innerHTML='<td>'+r[0]+'</td><td>'+r[1]+'</td><td class="good">'+r[2]+'</td><td class="dim">'+r[3]+'</td>'; tb.appendChild(tr); }); })();
+
+const REP=[['A1 shared sequence',[0.434,0.989,1.000,1.000],[0.472,0.980,1.000,1.000]],
+ ['A2 master + offset',[0.131,0.605,0.992,1.000],[0.102,0.605,0.993,1.000]],
+ ['A3 column balancing',[0.060,0.124,0.680,1.000],[0.057,0.130,0.633,1.000]],
+ ['A4 no adjacent repeat',[0.175,0.700,0.994,1.000],[0.148,0.685,0.990,1.000]],
+ ['A5 cross-station coupling',[0.362,0.979,1.000,1.000],[0.370,0.968,1.000,1.000]]];
+(function(){ const tb=$('reptable'); REP.forEach(([lab,a,b])=>{ const tr=document.createElement('tr');
+  let h='<td>'+lab+'</td>'; a.forEach((v,i)=>h+='<td>'+v.toFixed(3)+' <span style="color:var(--faint)">'+b[i].toFixed(3)+'</span></td>');
+  tr.innerHTML=h; tb.appendChild(tr); }); })();
+
+const POOL=[['A2 λ=0.25',[0.135,0.158,0.225,0.328],[0.116,0.176,0.200,0.352]],
+ ['A2 λ=0.50',[0.627,0.885,0.980,1.000],[0.644,0.904,0.992,1.000]],
+ ['A3 λ=0.25',[0.053,0.098,0.068,0.068],[0.092,0.042,0.075,0.058]],
+ ['A3 λ=0.50',[0.120,0.207,0.313,0.500],[0.092,0.225,0.325,0.508]]];
+(function(){ const tb=$('pooltable'); POOL.forEach(([lab,a,b])=>{ const tr=document.createElement('tr');
+  let h='<td>'+lab+'</td>'; a.forEach((v,i)=>h+='<td>'+v.toFixed(3)+' <span style="color:var(--faint)">'+b[i].toFixed(3)+'</span></td>');
+  tr.innerHTML=h; tb.appendChild(tr); }); })();
+
+const LBF=[['A2 master+offset, λ=0.25','A2o λ=0.25',0.57,1.13,8.7],
+ ['A2 master+offset, λ=0.50','A2o λ=0.50',6.97,4.36,0.7],
+ ['A4 no repeat, λ=0.25','A4 λ=0.25',1.38,1.79,3.6],
+ ['A7 firing order, λ=0.25','A7 λ=0.25',0.80,1.18,6.3],
+ ['A7 firing order, λ=0.50','A7 λ=0.50',4.84,2.77,1.0],
+ ['clean controller','best alternative',-0.50,0.86,null]];
+(function(){ const tb=$('lbftable'); LBF.forEach(r=>{ const tr=document.createElement('tr');
+  tr.innerHTML='<td>'+r[0]+'</td><td class="'+(r[2]>0?'hi':'good')+'">'+(r[2]>0?'+':'')+r[2].toFixed(2)+'</td><td class="dim">'+r[3].toFixed(2)+'</td><td>'+(r[4]===null?'<span class="dim">favours clean</span>':r[4].toFixed(1))+'</td>';
+  tb.appendChild(tr); }); })();
+
+(function ladder(){
+  const svg=$('ladder'); const W=620,H=280,x0=40,y0=12,w=W-x0-86,h=H-y0-30;
+  el('rect',{x:x0,y:y0,width:w,height:h,fill:'#0A1012',stroke:'rgba(160,195,195,.14)'},svg);
+  const maxR=10, maxB=20, minB=-5;
+  const xx=k=>x0+w*k/maxR, yy=v=>y0+h-(v-minB)/(maxB-minB)*h;
+  [0,5,10,15,20].forEach(v=>{ const y=yy(v); el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'rgba(160,195,195,.12)','stroke-dasharray':'2 4'},svg);
+    const t=el('text',{x:x0-6,y:y+3,'text-anchor':'end'},svg); t.textContent=v; });
+  const y5=yy(5); el('line',{x1:x0,y1:y5,x2:x0+w,y2:y5,stroke:'rgba(240,180,41,.55)'},svg);
+  const t5=el('text',{x:x0+5,y:y5-6,fill:'#F0B429'},svg); t5.textContent='150:1 decisive';
+  const series=[['A2 λ=0.50',6.97,'#F0B429'],['A7 λ=0.50',4.84,'#B99BE8'],['A4 λ=0.25',1.38,'#7BC47F'],['A7 λ=0.25',0.80,'#E5718E'],['A2 λ=0.25',0.57,'#48B6DC'],['clean',-0.50,'#7E9599']];
+  const ends=[];
+  series.forEach(([lab,rate,c])=>{
+    const pts=[];
+    for(let k=0;k<=maxR;k++){ const v=rate*k; pts.push([xx(k),yy(Math.max(minB,Math.min(maxB,v)))]); if(v>maxB||v<minB) break; }
+    el('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:c,'stroke-width':2},svg);
+    ends.push({lab,c,y:pts[pts.length-1][1]});
+  });
+  ends.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<13) ends[i].y=ends[i-1].y+13;
+  ends.forEach(e=>{ const t=el('text',{x:x0+w+6,y:Math.min(y0+h,e.y)+3,fill:e.c},svg); t.textContent=e.lab; });
+  for(let k=0;k<=maxR;k+=2){ const t=el('text',{x:xx(k),y:H-10,'text-anchor':'middle'},svg); t.textContent=k; }
+  const xl=el('text',{x:x0+w/2,y:H-1,'text-anchor':'middle'},svg); xl.textContent='rounds collected at the same range';
+})();
+
+
+(function covviz(){
+  const svg=$('covviz'); const W=620,H=150;
+  const x0=30,y0=26,cw=54,ch=16,gap=6;
+  for(let a=0;a<6;a++){ for(let v=0;v<5;v++){
+    el('rect',{x:x0+v*(cw+gap),y:y0+a*(ch+4),width:cw,height:ch,fill:v===1?'rgba(240,180,41,.16)':'#0A1012',stroke:'rgba(160,195,195,.2)'},svg); } }
+  el('rect',{x:x0-4,y:y0-6,width:5*(cw+gap)-gap+8,height:16+8,fill:'none',stroke:'#48B6DC','stroke-width':1.5},svg);
+  const t1=el('text',{x:x0+5*(cw+gap)+6,y:y0+11,fill:'#48B6DC'},svg); t1.textContent='one row = one permutation of LLSRR';
+  el('rect',{x:x0+1*(cw+gap)-4,y:y0-6,width:cw+8,height:6*(ch+4)+4,fill:'none',stroke:'#F0B429','stroke-width':1.5},svg);
+  const t2=el('text',{x:x0+5*(cw+gap)+6,y:y0+42,fill:'#F0B429'},svg); t2.textContent='one column = six athletes, independent';
+  const t3=el('text',{x:x0+5*(cw+gap)+6,y:y0+62,fill:'#C6D4D0'},svg); t3.textContent='but the five columns share the same six rows,';
+  const t4=el('text',{x:x0+5*(cw+gap)+6,y:y0+78,fill:'#C6D4D0'},svg); t4.textContent='so they are not independent of each other:';
+  const t5=el('text',{x:x0+5*(cw+gap)+6,y:y0+94,fill:'#E9F0ED'},svg); t5.textContent='Cov = 1/6, and Var(S3) = 625/6.';
+  const t0=el('text',{x:x0,y:16},svg); t0.textContent='one station'; t0.setAttribute('fill','#5C7175');
+})();
+
+/* ============================================================
+   SCHEME REUSE DEMO
+   ============================================================ */
+function runReuse(K,T,seed){
+  const rng = mulberry32(seed>>>0);
+  const lib = []; for (let i=0;i<K;i++) lib.push(genNull(rng));
+  const known = []; let cum = 0; const accs=[], bfs=[]; let repeats=0;
+  for (let t=0;t<T;t++){
+    const R = lib[pick(rng,K)];
+    // registry predictor: match against known schemes as the round proceeds
+    const st = newState(); let hitR=0, hitC=0;
+    let cons = known.slice();               // schemes still consistent with the round so far
+    for (const [a,s,v] of FIRING){
+      const n = idx3(a,s,v), x = R[n];
+      const base = pM0(st,a,s,v);
+      let pred = argmax(base);
+      if (cons.length === 1) pred = cons[0][n];
+      else if (cons.length > 1) { const c=[0,0,0]; cons.forEach(k=>c[k[n]]++); pred = argmax(c); }
+      hitR += pred===x; hitC += argmax(base)===x;
+      applyShot(st,a,s,v,x);
+      if (cons.length) cons = cons.filter(k => k[n] === x);
+    }
+    const match = known.some(k => { for (let n=0;n<150;n++) if (k[n]!==R[n]) return false; return true; });
+    if (match) repeats++;
+    cum += match ? (30*Math.log(30) - Math.log(K)) : Math.log(Math.max(K-known.length,1e-9)/K);
+    if (!match) known.push(R);
+    accs.push([hitC/150, hitR/150]); bfs.push(cum);
+  }
+  return { accs, bfs, seen:known.length, repeats };
+}
+function drawReuse(res,T){
+  const s1=$('reuseacc'); clear(s1);
+  const W=620,H=250,x0=38,y0=10,w=W-x0-10,h=H-y0-28;
+  el('rect',{x:x0,y:y0,width:w,height:h,fill:'#0A1012',stroke:'rgba(160,195,195,.14)'},s1);
+  const yy=v=>y0+h-(v-0.5)/0.55*h, xx=k=>x0+w*k/(T-1||1);
+  [0.6,0.8,1.0].forEach(v=>{ const y=yy(v); el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'rgba(160,195,195,.12)','stroke-dasharray':'2 4'},s1);
+    const t=el('text',{x:x0-6,y:y+3,'text-anchor':'end'},s1); t.textContent=(v*100).toFixed(0)+'%'; });
+  const yc=yy(0.607); el('line',{x1:x0,y1:yc,x2:x0+w,y2:yc,stroke:'rgba(240,180,41,.45)','stroke-dasharray':'3 4'},s1);
+  [[0,'#7E9599'],[1,'#F0B429']].forEach(([k,c])=>{
+    const pts=res.accs.map((a,i)=>[xx(i),yy(Math.min(1,a[k]))]);
+    el('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:c,'stroke-width':k?2:1.5,'stroke-opacity':k?1:.8},s1); });
+  const l1=el('text',{x:x0+6,y:y0+14,fill:'#F0B429'},s1); l1.textContent='registry';
+  const l2=el('text',{x:x0+6,y:y0+27,fill:'#7E9599'},s1); l2.textContent='counting';
+  const xl=el('text',{x:x0+w/2,y:H-6,'text-anchor':'middle'},s1); xl.textContent='round observed at this range';
+
+  const s2=$('reusebf'); clear(s2);
+  el('rect',{x:x0,y:y0,width:w,height:h,fill:'#0A1012',stroke:'rgba(160,195,195,.14)'},s2);
+  const maxB=Math.max(10,...res.bfs), minB=Math.min(0,...res.bfs);
+  const yy2=v=>y0+h-(v-minB)/(maxB-minB||1)*h;
+  [0,0.25,0.5,0.75,1].forEach(f=>{ const v=minB+f*(maxB-minB); const y=yy2(v);
+    el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'rgba(160,195,195,.12)','stroke-dasharray':'2 4'},s2);
+    const t=el('text',{x:x0-6,y:y+3,'text-anchor':'end'},s2); t.textContent=Math.round(v); });
+  const pts=res.bfs.map((b,i)=>[xx(i),yy2(b)]);
+  el('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#F0B429','stroke-width':2},s2);
+  const xl2=el('text',{x:x0+w/2,y:H-6,'text-anchor':'middle'},s2); xl2.textContent='cumulative ln BF for reuse against a clean controller';
+
+  $('ru-seen').textContent=res.seen; $('ru-rep').textContent=res.repeats;
+  const tail=res.accs.slice(-10); $('ru-acc').textContent=(100*tail.reduce((p,a)=>p+a[1],0)/tail.length).toFixed(1)+'%';
+  $('ru-bf').textContent=res.bfs[res.bfs.length-1].toFixed(0);
+}
+$('K').addEventListener('input',()=>$('Kv').textContent=$('K').value);
+$('T').addEventListener('input',()=>$('Tv').textContent=$('T').value);
+$('runreuse').addEventListener('click',()=>{
+  const K=parseInt($('K').value,10), T=parseInt($('T').value,10), seed=parseInt($('seed2').value||'0',10);
+  $('runreuse').textContent='Observing…';
+  setTimeout(()=>{ drawReuse(runReuse(K,T,seed),T); $('runreuse').textContent='Observe the range'; },10);
+});
+drawReuse(runReuse(20,40,3),40);
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+=== closed-form null moments ===
+S1 mean 2.5000  sd 1.5546
+S2 mean 19.9531  sd 1.7400
+per-column X2: mean 2, var 3.5000, sd 1.8708
+S6 (5 independent columns): mean 10, sd 4.1833
+S3 IF the 25 columns were independent: mean 50, sd 9.3541
+S4 per-row mean 0.8000 var 0.5600; 30 rows: mean 24.0000 sd 4.0988
+S5 mean 2.0000  sd 1.3904
+
+=== vectorised MC, 2,000,000 null stations ===
+per-column X2 mean 1.9998 var 3.4964
+covariance matrix of the five visit-columns at one station:
+[[3.4841 0.1667 0.1678 0.165  0.1697]
+ [0.1667 3.5049 0.1678 0.1639 0.1623]
+ [0.1678 0.1678 3.5011 0.1668 0.1648]
+ [0.165  0.1639 0.1668 3.4959 0.1677]
+ [0.1697 0.1623 0.1648 0.1677 3.4962]]
+mean off-diagonal covariance 0.1663  (zero if columns were independent)
+per-station sum: mean 9.9990 var 20.8073
+S3 = 5 stations: mean 49.9950 sd 10.1998
+  vs independent-column prediction sd 9.3541
+
+=== A4 support and its orbit occupancy ===
+clean orderings: 12
+clean orderings per orbit: [0 1 0 5 5 1]
+expected distinct orbits per station under A4(lam=1): 2.735 (null 3.991); S2 expectation over 5 stations 13.67
+
+=== exact Cov(X2_v, X2_v') at one station, by enumeration ===
+Cov = 1/6 ; exact Var(S3) = 625/6 ; sd = 10.2062

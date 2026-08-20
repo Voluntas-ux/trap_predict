@@ -1,0 +1,18 @@
+Building null table (20000 draws) ...
+
+=== NULL CALIBRATION (statistic means under H0) ===
+  S1 identical pairs, within station         mean    2.510   sd   1.552
+  S2 distinct cyclic orbits per station      mean   19.967   sd   1.734
+  S3 column dispersion (station x visit)     mean   49.988   sd  10.139
+  S4 adjacent repeats within row             mean   23.998   sd   4.087
+  S5 identical pairs, within athlete         mean    1.998   sd   1.394
+  S6 first-target concentration              mean    9.990   sd   4.157
+
+=== SIZE CHECK: rejection rate under H0 at alpha=0.05 (3000 simulated rounds) ===
+  empirical size = 0.0570   (target 0.05)
+
+=== POWER FROM A SINGLE ROUND, alpha=0.05, 3000 rounds per cell ===
+alternative                   lam=0.25  lam=0.50  lam=0.75  lam=1.00
+A1 shared sequence               0.434     0.989     1.000     1.000
+A2 master + cyclic offset        0.131     0.605     0.992     1.000
+A3 column balancing              0.060     0.124     0.680     1.000

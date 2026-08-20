@@ -1,0 +1,4 @@
+elapsed 85.7
+alpha=0.01: size=0.0087  (SE 0.0007)
+alpha=0.05: size=0.0480  (SE 0.0015)
+alpha=0.1: size=0.0998  (SE 0.0021)

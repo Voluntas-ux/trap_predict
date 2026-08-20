@@ -1,0 +1,13 @@
+size of pooled test under H0 (600 reps each):
+  k=1: 0.043
+  k=2: 0.047
+  k=3: 0.050
+  k=5: 0.038
+
+power, 400 reps per cell, alternatives A2 and A3:
+case                           k=1     k=2     k=3     k=5
+A2 master+offset lam=0.25    0.135   0.158   0.225   0.328
+A2 master+offset lam=0.5     0.627   0.885   0.980   1.000
+A3 column balancing lam=0.25   0.053   0.098   0.068   0.068
+A3 column balancing lam=0.5    0.120   0.207   0.313   0.500    (150 reps; run separately after the first process was interrupted)
+   note's Section 4 values for comparison: A2 .25: .116/.176/.200/.352  A2 .5: .644/.904/.992/1.000  A3 .25: .092/.042/.075/.058  A3 .5: .092/.225/.325/.508
