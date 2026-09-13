@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check a round — is the trap machine random?</title>
+<meta name="description" content="Write down the targets a squad received and find out whether the machine is drawing at random or following a pattern.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#E9EDEC; --panel:#FFFFFF; --sunk:#F3F6F5;
+  --ink:#0F1819; --body:#2F4447; --muted:#5F767A; --faint:#8399 9C; --faint:#82989B;
+  --line:rgba(15,24,25,.14); --line2:rgba(15,24,25,.26);
+  --L:#1179A8; --S:#9A6B06; --R:#BE3A5E; --amber:#0F6B5C; --green:#2E7D4F; --onchip:#FFFFFF;
+  --disp:'Archivo',system-ui,sans-serif;
+  --body-face:'Source Sans 3',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --w:1080px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ground);color:var(--body);font-family:var(--body-face);font-size:18px;line-height:1.62;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--disp);color:var(--ink);font-weight:700;line-height:1.12;margin:0;letter-spacing:-.02em}
+a{color:var(--ink);text-decoration:none;border-bottom:1.5px solid var(--amber)}
+a:hover{color:var(--amber)}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 24px}
+p{max-width:70ch;margin:0 0 16px}
+section{padding:64px 0;border-top:1px solid var(--line);scroll-margin-top:58px}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
+.small{font-size:15.5px;color:var(--muted)}
+.mono{font-family:var(--mono)}
+
+header.top{position:sticky;top:0;z-index:50;background:rgba(233,237,236,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;height:57px;gap:16px}
+.brand{font-family:var(--disp);font-weight:700;font-size:15.5px;color:var(--ink);border:none;white-space:nowrap}
+nav a{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:none;margin-left:18px;white-space:nowrap}
+nav a:hover{color:var(--amber)}
+nav{display:flex;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+
+/* ---- hero ---- */
+.hero{padding:62px 0 20px}
+.hero h1{font-size:clamp(32px,5vw,58px);max-width:17ch}
+.answer{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--amber);padding:26px 28px;margin:30px 0 8px;max-width:78ch}
+.answer p{font-size:19px;color:var(--ink);margin-bottom:12px}
+.answer p:last-child{margin-bottom:0}
+.answer b{font-weight:600}
+
+/* ---- the 150-target strip ---- */
+.strip150{display:grid;grid-template-columns:repeat(50,1fr);gap:2px;margin:26px 0 8px;max-width:780px}
+.strip150 i{height:16px;display:block}
+.striplab{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--muted);flex-wrap:wrap}
+.striplab i{width:10px;height:10px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* ---- structure ---- */
+.scq{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);background:var(--panel);margin-top:10px}
+.scq div{padding:20px 22px;border-right:1px solid var(--line)}
+.scq div:last-child{border-right:none}
+.scq h4{font-size:12px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:8px;font-weight:600}
+.scq p{font-size:16.5px;margin:0}
+
+.point{display:grid;grid-template-columns:64px 1fr;gap:26px;border-top:1px solid var(--line);padding:34px 0}
+.point:first-of-type{border-top:none}
+.point .num{font-family:var(--disp);font-size:40px;font-weight:700;color:var(--amber);line-height:1}
+.point h3{font-size:26px;margin-bottom:12px;max-width:24ch}
+
+.big{background:var(--panel);border:1px solid var(--line);padding:22px;display:flex;gap:30px;flex-wrap:wrap;align-items:center;margin:18px 0}
+.big div{min-width:110px}
+.big b{display:block;font-family:var(--disp);font-size:34px;color:var(--ink);line-height:1.1}
+.big span{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:18px}
+.card{background:var(--panel);border:1px solid var(--line);padding:18px 20px}
+.card h4{font-size:17px;margin-bottom:6px}
+.card p{font-size:16px;color:var(--muted);margin:0}
+
+ol.todo{counter-reset:t;list-style:none;padding:0;margin:20px 0}
+ol.todo li{counter-increment:t;position:relative;padding:0 0 18px 46px;max-width:72ch}
+ol.todo li::before{content:counter(t);position:absolute;left:0;top:1px;width:28px;height:28px;border:1.5px solid var(--amber);color:var(--amber);font-family:var(--mono);font-size:13px;display:flex;align-items:center;justify-content:center}
+ol.todo b{color:var(--ink)}
+
+.tw{overflow-x:auto;margin:16px 0}
+table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:13px;background:var(--panel)}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.hi{color:var(--amber);font-weight:600}
+
+.cta{background:var(--ink);color:#E9EDEC;padding:30px 32px;display:flex;gap:26px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:8px}
+.cta h3{color:#FFF;font-size:24px;margin-bottom:6px}
+.cta p{color:#B9C8CA;margin:0;font-size:16px}
+.cta a{background:var(--amber);color:#fff;border:none;padding:13px 22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;font-weight:600}
+.cta a:hover{background:#12836f;color:#fff}
+
+footer{padding:44px 0 64px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
+@media (max-width:820px){
+  .scq,.cards{grid-template-columns:1fr}
+  .scq div{border-right:none;border-bottom:1px solid var(--line)}
+  .point{grid-template-columns:1fr;gap:10px}
+  .point .num{font-size:30px}
+  .strip150{grid-template-columns:repeat(25,1fr)}
+  body{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto}}
+</style>
+<style>
+button{font-family:var(--mono);font-size:12px;letter-spacing:.07em;text-transform:uppercase;background:var(--panel);color:var(--ink);border:1px solid var(--line2);padding:9px 14px;cursor:pointer}
+button:hover{border-color:var(--amber);color:var(--amber)}
+button.primary{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:600}
+button.primary:hover{background:#12836f;color:#fff}
+button:disabled{opacity:.45;cursor:default}
+.panel{background:var(--panel);border:1px solid var(--line);padding:22px}
+.an-hint{font-size:15.5px;color:var(--muted);max-width:78ch}
+.an-verdict{background:var(--panel)}
+.cellbtn{background:var(--sunk)}
+.an-stats{background:var(--panel)}
+td.dim{white-space:normal}
+th,td{white-space:nowrap}
+</style>
+<style>
+/* Structural styles for the round recorder and analysis panels.
+   Colours come from the host page's tokens; the fallbacks keep this
+   readable if a token is missing. */
+
+.an-wrap { --ok: var(--green, #2e7d4f); --warn: var(--amber, #b07908); --bad: var(--R, #c23c60); }
+
+/* ---------- toolbar ---------- */
+.an-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.an-toolbar .sep { flex: 1 }
+.an-note { font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: .04em }
+
+/* ---------- round tabs ---------- */
+.an-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; align-items: center }
+.an-tab { font-family: var(--mono); font-size: 12px; padding: 7px 12px; border: 1px solid var(--line2); background: transparent; color: var(--ink); cursor: pointer; display: flex; align-items: center; gap: 7px }
+.an-tab[aria-selected="true"] { border-color: var(--amber); color: var(--amber) }
+.an-tab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint) }
+.an-tab .dot.part { background: var(--amber) }
+.an-tab .dot.full { background: var(--green, #7BC47F) }
+.an-tab .dot.bad { background: var(--R) }
+
+/* ---------- entry grid ---------- */
+.an-gridscroll { overflow-x: auto }
+.an-grid { display: grid; grid-template-columns: auto repeat(5, 1fr); gap: 8px; align-items: center; min-width: 540px; font-family: var(--mono) }
+.an-grid .hd { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); text-align: center }
+.an-grid .rl { font-size: 10.5px; color: var(--faint); text-align: right; padding-right: 8px; letter-spacing: .05em }
+.an-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px }
+.an-strip.bad { outline: 1px solid var(--R); outline-offset: 3px }
+.an-strip.done { opacity: 1 }
+.cellbtn { height: 30px; border: 1px solid var(--line2); background: var(--sunk); color: var(--faint); font-family: var(--mono); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 0; transition: none }
+.cellbtn:hover { border-color: var(--amber) }
+.cellbtn[data-x="0"] { background: var(--L); color: var(--onchip, #0C1315); border-color: transparent }
+.cellbtn[data-x="1"] { background: var(--S); color: var(--onchip, #0C1315); border-color: transparent }
+.cellbtn[data-x="2"] { background: var(--R); color: var(--onchip, #0C1315); border-color: transparent }
+.cellbtn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; z-index: 2; position: relative }
+
+.an-meta { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; font-family: var(--mono); font-size: 11.5px; color: var(--muted) }
+.an-meta b { color: var(--ink); font-weight: 500 }
+.an-legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 12px }
+.an-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px }
+
+/* ---------- paste box ---------- */
+.an-paste { display: none; margin-top: 14px }
+.an-paste.open { display: block }
+.an-paste textarea { width: 100%; min-height: 120px; background: var(--sunk); color: var(--ink); border: 1px solid var(--line2); font-family: var(--mono); font-size: 12.5px; padding: 10px }
+
+/* ---------- verdict ---------- */
+.an-verdict { border: 1px solid var(--line2); padding: 20px 22px; display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center }
+.an-verdict .mark { width: 74px; height: 74px; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-family: var(--disp); font-size: 30px; font-weight: 700 }
+.an-verdict h3 { font-size: 22px; margin: 0 0 6px }
+.an-verdict p { margin: 0; font-size: 16px; color: var(--body) }
+.an-verdict.clean { color: var(--green, #7BC47F) }
+.an-verdict.weak { color: var(--amber) }
+.an-verdict.struct { color: var(--R) }
+.an-verdict.none { color: var(--faint) }
+.an-verdict h3, .an-verdict p { color: var(--ink) }
+
+/* ---------- readouts and bars ---------- */
+.an-stats { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); margin-top: 18px }
+.an-stats div { padding: 13px 15px; border-right: 1px solid var(--line) }
+.an-stats div:last-child { border-right: none }
+.an-stats b { display: block; font-family: var(--mono); font-size: 21px; color: var(--ink); font-weight: 500 }
+.an-stats span { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint) }
+
+.evbar { display: block; position: relative; width: 100%; min-width: 110px; height: 9px; background: var(--sunk); border: 1px solid var(--line) }
+.evbar i { position: absolute; top: 0; bottom: 0; background: var(--amber) }
+.evbar i.neg { background: var(--muted) }
+
+.an-prog { height: 7px; background: var(--sunk); border: 1px solid var(--line); margin-top: 8px }
+.an-prog i { display: block; height: 100%; background: var(--amber) }
+
+.an-hint { font-size: 15px; color: var(--muted); margin-top: 10px }
+.an-empty { border: 1px dashed var(--line2); padding: 26px; text-align: center; color: var(--muted); font-size: 15.5px }
+
+@media (max-width: 900px) {
+  .an-stats { grid-template-columns: repeat(2, 1fr) }
+  .an-verdict { grid-template-columns: 1fr; gap: 14px }
+}
+
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top">Is it random?</a>
+    <nav>
+      <a href="#top">the short version</a>
+      <a href="#record">check a round</a>
+      <a href="#cannot">what you cannot get</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap hero">
+  <div class="kicker">the checker</div>
+  <h1 style="font-size:clamp(30px,4.4vw,48px);max-width:19ch">Write down what the machine threw. Find out what it is doing.</h1>
+  <p style="font-size:19px;color:var(--ink);max-width:66ch;margin-top:20px">Each target, as it comes: which athlete, which station, and whether it went left, straight or right. You do not need a full round to start, and you do not need to understand any of the maths to read the answer.</p>
+  <p class="small">Nothing is uploaded anywhere. It stays in this browser, and you can export it as a spreadsheet file at any time. To see it work first, load one of the two examples: one machine is clean, the other is following a pattern.</p>
+</div>
+
+<section id="record">
+  <div class="wrap">
+    <div class="kicker">step 1</div>
+    <h2 style="font-size:28px;margin-bottom:8px">The round sheet</h2>
+    <p>Six athletes down the side, five stations across, five visits each. Click a box to cycle it through left, straight and right, or click it and press L, S or R and it moves on by itself. Leave a box empty if you missed that target.</p>
+    <div class="panel"><div id="entry"></div></div>
+    <p class="small" style="margin-top:14px">Every station gives an athlete two lefts, two rights and one straight. A row that breaks that rule is either a slip of the pen or a machine doing something it should not. Those rows get outlined in red.</p>
+  </div>
+</section>
+
+<section id="answer">
+  <div class="wrap">
+    <div class="kicker">step 2</div>
+    <h2 style="font-size:28px;margin-bottom:16px">Is it random?</h2>
+    <div id="verdict"></div>
+  </div>
+</section>
+
+<section id="which">
+  <div class="wrap">
+    <div class="kicker">step 3</div>
+    <h2 style="font-size:28px;margin-bottom:8px">Which pattern, and how sure</h2>
+    <p>Five patterns, each something a controller could plausibly be doing, all tested against plain randomness. The evidence builds up across every round you record at the same range, so an unclear answer after one round often becomes clear after four.</p>
+    <div id="evidence"></div>
+  </div>
+</section>
+
+<section id="edge">
+  <div class="wrap">
+    <div class="kicker">step 4</div>
+    <h2 style="font-size:28px;margin-bottom:8px">How much is it worth?</h2>
+    <p>The number that actually matters. Every target you recorded was predicted before it was revealed, twice over: once by counting alone, once by counting plus whatever pattern the evidence supports. The gap is the edge this machine is giving away.</p>
+    <div id="predictability"></div>
+  </div>
+</section>
+
+<section id="reuse">
+  <div class="wrap">
+    <div class="kicker">step 5</div>
+    <h2 style="font-size:28px;margin-bottom:8px">Has a whole round turned up twice?</h2>
+    <p>If the machine works from a set of prepared rounds, every round looks random on its own and no single-round test can catch it. A repeat gives it away instantly, and two identical rounds of 150 targets do not happen by accident. This is the main reason to keep recording.</p>
+    <div id="repeats"></div>
+  </div>
+</section>
+
+<section id="spread">
+  <div class="wrap">
+    <div class="kicker">step 6 · the slow one</div>
+    <h2 style="font-size:28px;margin-bottom:8px">Does it favour some orders over others?</h2>
+    <p>A different question, and one that needs far more data: over the long run, do all thirty possible orders come up equally often? Around 37 full rounds before this is worth reading.</p>
+    <div id="uniformity"></div>
+  </div>
+</section>
+
+<section id="screen">
+  <div class="wrap">
+    <div class="kicker">step 7 · for comparison</div>
+    <h2 style="font-size:28px;margin-bottom:8px">The older screening test</h2>
+    <p>The same rounds run through an earlier, simpler check. It can say "this is not random" but not what to expect instead. It is here so the two can be read side by side.</p>
+    <div id="battery"></div>
+  </div>
+</section>
+
+<section id="caveats-sec">
+  <div class="wrap">
+    <div class="kicker">read this before quoting any of it</div>
+    <h2 style="font-size:28px;margin-bottom:14px">What this cannot tell you</h2>
+    <div id="caveats" style="font-size:17px"></div>
+    <p class="small" style="margin-top:14px">The rest of the list is on <a href="#cannot">the main page</a>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Runs entirely in your browser. Same models as the technical version, ported to run on this page.</p>
+  </div>
+</footer>
+
+<script>
+"use strict";
+/* Shared engine for the trap controller audit pages.
+   Loaded as a classic script: its top-level const/let bindings are visible
+   to the page scripts that follow it. Keep in step with
+   src/trap_controller_inference.py and src/single_round_independence_test.py. */
+
+/* ============================================================
+   ENGINE — ports the Python reference implementation
+   labels: 0 = L, 1 = S, 2 = R
+   ============================================================ */
+const LAB = ['L','S','R'], COL = ['#48B6DC','#EFE2C0','#E5718E'];
+const N_ORD = 30;
+
+const ORD = (() => {
+  const out = new Set();
+  const rec = (rest, cur) => {
+    if (!rest.length) { out.add(cur.join('')); return; }
+    for (let i = 0; i < rest.length; i++) rec(rest.slice(0,i).concat(rest.slice(i+1)), cur.concat(rest[i]));
+  };
+  rec([0,0,1,2,2], []);
+  return [...out].sort().map(s => s.split('').map(Number));
+})();
+
+const shift = (o,k) => o.map((_,i) => o[(i+k)%5]);
+const ORBIT_OF = new Int8Array(N_ORD).fill(-1);
+const ORBITS = [];
+ORD.forEach((o,i) => {
+  if (ORBIT_OF[i] >= 0) return;
+  const j = ORBITS.length; const members = [];
+  for (let k = 0; k < 5; k++) {
+    const key = shift(o,k).join('');
+    const idx = ORD.findIndex(p => p.join('') === key);
+    ORBIT_OF[idx] = j; members.push(idx);
+  }
+  ORBITS.push(members);
+});
+const ORBIT_MASK = ORBITS.map(m => { const a = new Uint8Array(N_ORD); m.forEach(i => a[i] = 1); return a; });
+const CLEAN = new Uint8Array(N_ORD);
+ORD.forEach((o,i) => { CLEAN[i] = o.every((v,k) => k === 4 || v !== o[k+1]) ? 1 : 0; });
+const N_CLEAN = CLEAN.reduce((a,b) => a+b, 0);            // 12
+const POS = [];                                            // POS[v][x] -> Uint8Array(30)
+for (let v = 0; v < 5; v++) { POS.push([]); for (let x = 0; x < 3; x++) { const a = new Uint8Array(N_ORD); ORD.forEach((o,i) => a[i] = o[v] === x ? 1 : 0); POS[v].push(a); } }
+
+const FIRING = [];
+for (let n = 0; n < 150; n++) FIRING.push([n % 6, n % 5, Math.floor(n / 30)]);
+const idx3 = (a,s,v) => a*25 + s*5 + v;
+
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const pick = (rng,n) => Math.floor(rng()*n);
+
+/* ---------- generators ---------- */
+function put(R,a,s,o) { for (let v = 0; v < 5; v++) R[idx3(a,s,v)] = o[v]; }
+
+function genNull(rng) { const R = new Int8Array(150); for (let a=0;a<6;a++) for (let s=0;s<5;s++) put(R,a,s,ORD[pick(rng,N_ORD)]); return R; }
+function genShared(rng,lam) { const R = new Int8Array(150); for (let s=0;s<5;s++){ const m = ORD[pick(rng,N_ORD)]; for (let a=0;a<6;a++) put(R,a,s, rng()<lam ? m : ORD[pick(rng,N_ORD)]); } return R; }
+function genMasterOffset(rng,lam) { const R = new Int8Array(150); for (let s=0;s<5;s++){ const m = ORD[pick(rng,N_ORD)]; for (let a=0;a<6;a++) put(R,a,s, rng()<lam ? shift(m,a%5) : ORD[pick(rng,N_ORD)]); } return R; }
+function genNoAdj(rng,lam) { const clean = ORD.filter((_,i)=>CLEAN[i]); const R = new Int8Array(150); for (let a=0;a<6;a++) for (let s=0;s<5;s++){ const pool = rng()<lam ? clean : ORD; put(R,a,s,pool[pick(rng,pool.length)]); } return R; }
+function genCross(rng,lam) { const R = new Int8Array(150); for (let a=0;a<6;a++){ const b = ORD[pick(rng,N_ORD)]; for (let s=0;s<5;s++) put(R,a,s, rng()<lam ? b : ORD[pick(rng,N_ORD)]); } return R; }
+function genFiring(rng,lam) {
+  const R = new Int8Array(150).fill(-1);
+  const urn = []; for (let a=0;a<6;a++){ urn.push([]); for (let s=0;s<5;s++) urn[a].push([2,1,2]); }
+  const last = [-1,-1,-1,-1,-1];
+  for (const [a,s,v] of FIRING) {
+    const c = urn[a][s].slice(); const w = c.slice();
+    if (last[s] >= 0) w[last[s]] *= (1-lam);
+    let tot = w[0]+w[1]+w[2]; const use = tot > 0 ? w : c; tot = use[0]+use[1]+use[2];
+    let u = rng()*tot, x = 0; while (x < 2 && u > use[x]) { u -= use[x]; x++; }
+    R[idx3(a,s,v)] = x; urn[a][s][x]--; last[s] = x;
+  }
+  return R;
+}
+const GENS = { M0:(r)=>genNull(r), A1:genShared, A2:genMasterOffset, A4:genNoAdj, A5:genCross, A7:genFiring };
+function generate(kind, lam, seed) { const rng = mulberry32(seed >>> 0); return kind === 'M0' ? genNull(rng) : GENS[kind](rng, lam); }
+
+/* ---------- state ---------- */
+function newState() {
+  const mask = []; for (let i=0;i<30;i++) mask.push(new Uint8Array(N_ORD).fill(1));
+  const urn = []; for (let a=0;a<6;a++){ urn.push([]); for (let s=0;s<5;s++) urn[a].push([2,1,2]); }
+  return { mask, urn, last:[-1,-1,-1,-1,-1], obs:new Int8Array(150).fill(-1), n:0 };
+}
+const mi = (a,s) => a*5 + s;
+function cnt(m) { let c = 0; for (let i=0;i<N_ORD;i++) c += m[i]; return c; }
+function andMask(m,p) { const o = new Uint8Array(N_ORD); for (let i=0;i<N_ORD;i++) o[i] = m[i] & p[i]; return o; }
+function applyShot(st,a,s,v,x) { const m = st.mask[mi(a,s)]; const p = POS[v][x]; for (let i=0;i<N_ORD;i++) m[i] &= p[i]; st.urn[a][s][x]--; st.last[s] = x; st.obs[idx3(a,s,v)] = x; st.n++; }
+
+/* ---------- models ---------- */
+function pM0(st,a,s,v) { const m = st.mask[mi(a,s)]; const tot = cnt(m) || 1; const w = [0,0,0]; for (let x=0;x<3;x++) w[x] = cnt(andMask(m,POS[v][x]))/tot; return norm(w); }
+function norm(w) { const t = w[0]+w[1]+w[2]; return t > 0 ? [w[0]/t,w[1]/t,w[2]/t] : [1/3,1/3,1/3]; }
+
+function pA1(st,a,s,v,lam) {
+  const others = new Float64Array(N_ORD).fill(1);
+  for (let b=0;b<6;b++) { if (b===a) continue; const m = st.mask[mi(b,s)]; const c = cnt(m)/N_ORD; for (let i=0;i<N_ORD;i++) others[i] *= lam*m[i] + (1-lam)*c; }
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const mx = andMask(ma,POS[v][x]); const c = cnt(mx)/N_ORD; let acc = 0; for (let i=0;i<N_ORD;i++) acc += others[i]*(lam*mx[i] + (1-lam)*c); w[x] = acc/N_ORD; }
+  return norm(w);
+}
+function orbVec(m,lam) { const v = new Float64Array(6); const c = cnt(m)/N_ORD; for (let j=0;j<6;j++){ let k=0; const om=ORBIT_MASK[j]; for (let i=0;i<N_ORD;i++) k += m[i]&om[i]; v[j] = lam*(k/5) + (1-lam)*c; } return v; }
+function pA2o(st,a,s,v,lam) {
+  const others = new Float64Array(6).fill(1);
+  for (let b=0;b<6;b++) { if (b===a) continue; const ov = orbVec(st.mask[mi(b,s)],lam); for (let j=0;j<6;j++) others[j] *= ov[j]; }
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const ov = orbVec(andMask(ma,POS[v][x]),lam); let acc = 0; for (let j=0;j<6;j++) acc += others[j]*ov[j]; w[x] = acc/6; }
+  return norm(w);
+}
+function pA4(st,a,s,v,lam) {
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const mx = andMask(ma,POS[v][x]); let c = 0; for (let i=0;i<N_ORD;i++) c += mx[i]&CLEAN[i]; w[x] = lam*(c/N_CLEAN) + (1-lam)*(cnt(mx)/N_ORD); }
+  return norm(w);
+}
+function pA5(st,a,s,v,lam) {
+  const others = new Float64Array(N_ORD).fill(1);
+  for (let t=0;t<5;t++) { if (t===s) continue; const m = st.mask[mi(a,t)]; const c = cnt(m)/N_ORD; for (let i=0;i<N_ORD;i++) others[i] *= lam*m[i] + (1-lam)*c; }
+  const ma = st.mask[mi(a,s)], w = [0,0,0];
+  for (let x=0;x<3;x++) { const mx = andMask(ma,POS[v][x]); const c = cnt(mx)/N_ORD; let acc = 0; for (let i=0;i<N_ORD;i++) acc += others[i]*(lam*mx[i] + (1-lam)*c); w[x] = acc/N_ORD; }
+  return norm(w);
+}
+function pA7(st,a,s,v,lam) {
+  const c = st.urn[a][s].slice(); const w = c.slice();
+  if (st.last[s] >= 0) w[st.last[s]] *= (1-lam);
+  return (w[0]+w[1]+w[2]) > 0 ? norm(w) : norm(c);
+}
+
+const LAMS = [0.25,0.5,0.75,1.0];
+const FAMS = ['M0','A1','A2o','A4','A5','A7'];
+const FAM_LABEL = { M0:'clean', A1:'A1 shared', A2o:'A2 master+offset', A4:'A4 no repeat', A5:'A5 cross-station', A7:'A7 firing order' };
+const FAM_COL = { M0:'#7E9599', A1:'#48B6DC', A2o:'#F0B429', A4:'#7BC47F', A5:'#E5718E', A7:'#B99BE8' };
+const MODELS = [{ fam:'M0', lam:null, f:pM0, prior:0.5 }];
+[['A1',pA1],['A2o',pA2o],['A4',pA4],['A5',pA5],['A7',pA7]].forEach(([fam,f]) => {
+  LAMS.forEach(l => MODELS.push({ fam, lam:l, f:(st,a,s,v)=>f(st,a,s,v,l), prior:0.5/5/LAMS.length }));
+});
+const LOGPRIOR = MODELS.map(m => Math.log(m.prior));
+
+/* ---------- runner ---------- */
+class Runner {
+  constructor(R) { this.R = R; this.st = newState(); this.i = 0; this.ll = new Float64Array(MODELS.length); this.hitC = 0; this.hitM = 0; this.llC = 0; this.llM = 0; this.hist = []; this.blocksC = [0,0,0,0,0]; this.blocksM = [0,0,0,0,0]; }
+  get done() { return this.i >= 150; }
+  peek() { const [a,s,v] = FIRING[this.i]; return { a, s, v, i:this.i }; }
+  weights() { const lw = MODELS.map((m,j) => LOGPRIOR[j] + this.ll[j]); const mx = Math.max(...lw); const w = lw.map(x => Math.exp(x - mx)); const t = w.reduce((p,q)=>p+q,0); return w.map(x => x/t); }
+  famPost() { const w = this.weights(); const out = {}; FAMS.forEach(f => out[f] = 0); MODELS.forEach((m,j) => out[m.fam] += w[j]); return out; }
+  predictive() {
+    const [a,s,v] = FIRING[this.i]; const P = MODELS.map(m => m.f(this.st,a,s,v)); const w = this.weights();
+    const mix = [0,0,0]; for (let j=0;j<MODELS.length;j++) for (let x=0;x<3;x++) mix[x] += w[j]*P[j][x];
+    return { P, mix:norm(mix), base:P[0], a, s, v };
+  }
+  step() {
+    if (this.done) return null;
+    const { P, mix, base, a, s, v } = this.predictive();
+    const x = this.R[idx3(a,s,v)]; const b = Math.floor(this.i/30);
+    const cHit = argmax(base) === x, mHit = argmax(mix) === x;
+    this.hitC += cHit; this.hitM += mHit; this.blocksC[b] += cHit; this.blocksM[b] += mHit;
+    this.llC += -Math.log(Math.max(base[x],1e-300)); this.llM += -Math.log(Math.max(mix[x],1e-300));
+    for (let j=0;j<MODELS.length;j++) this.ll[j] += Math.log(Math.max(P[j][x],1e-300));
+    applyShot(this.st,a,s,v,x); this.i++;
+    const post = this.famPost();
+    const rec = { a, s, v, x, mix, base, post, cHit, mHit, i:this.i, lbf:this.lbf() };
+    this.hist.push(rec); return rec;
+  }
+  lbf() {  // log Bayes factor: best alternative family against clean
+    let best = -Infinity;
+    FAMS.slice(1).forEach(f => { const idxs = MODELS.map((m,j)=>[m,j]).filter(([m])=>m.fam===f).map(([,j])=>j);
+      const mx = Math.max(...idxs.map(j=>this.ll[j])); const s = Math.log(idxs.reduce((p,j)=>p+Math.exp(this.ll[j]-mx),0)) + mx - Math.log(idxs.length);
+      best = Math.max(best, s - this.ll[0]); });
+    return best;
+  }
+}
+const argmax = a => a[0] >= a[1] ? (a[0] >= a[2] ? 0 : 2) : (a[1] >= a[2] ? 1 : 2);
+
+/* ============================================================
+   BATTERY — the six statistics and their Monte Carlo null
+   ============================================================ */
+const MARG = [0.4,0.2,0.4];
+function rowsOf(R) { const out = []; for (let a=0;a<6;a++) for (let s=0;s<5;s++) { const r = []; for (let v=0;v<5;v++) r.push(R[idx3(a,s,v)]); out.push(r); } return out; }
+function statS1(R){ let c=0; for(let s=0;s<5;s++){ const rows=[]; for(let a=0;a<6;a++){const r=[];for(let v=0;v<5;v++)r.push(R[idx3(a,s,v)]);rows.push(r.join(''));} for(let i=0;i<6;i++)for(let j=i+1;j<6;j++) if(rows[i]===rows[j])c++; } return c; }
+function ordIndexOf(arr){ const k=arr.join(''); return ORD.findIndex(o=>o.join('')===k); }
+function statS2(R){ let t=0; for(let s=0;s<5;s++){ const set=new Set(); for(let a=0;a<6;a++){const r=[];for(let v=0;v<5;v++)r.push(R[idx3(a,s,v)]); set.add(ORBIT_OF[ordIndexOf(r)]);} t+=set.size; } return t; }
+function statS3(R){ let t=0; for(let s=0;s<5;s++) for(let v=0;v<5;v++){ const o=[0,0,0]; for(let a=0;a<6;a++) o[R[idx3(a,s,v)]]++; for(let x=0;x<3;x++){const e=6*MARG[x]; t+=(o[x]-e)*(o[x]-e)/e;} } return t; }
+function statS4(R){ let c=0; for(let a=0;a<6;a++) for(let s=0;s<5;s++) for(let v=0;v<4;v++) if(R[idx3(a,s,v)]===R[idx3(a,s,v+1)])c++; return c; }
+function statS5(R){ let c=0; for(let a=0;a<6;a++){ const rows=[]; for(let s=0;s<5;s++){const r=[];for(let v=0;v<5;v++)r.push(R[idx3(a,s,v)]);rows.push(r.join(''));} for(let i=0;i<5;i++)for(let j=i+1;j<5;j++) if(rows[i]===rows[j])c++; } return c; }
+function statS6(R){ let t=0; for(let s=0;s<5;s++){ const o=[0,0,0]; for(let a=0;a<6;a++) o[R[idx3(a,s,0)]]++; for(let x=0;x<3;x++){const e=6*MARG[x]; t+=(o[x]-e)*(o[x]-e)/e;} } return t; }
+const STATS = [
+  { k:'S1', f:statS1, side:'high', name:'S1 identical pairs, within station', det:'one sequence reused across athletes' },
+  { k:'S2', f:statS2, side:'low',  name:'S2 distinct cyclic orbits', det:'master ordering with per-athlete offset' },
+  { k:'S3', f:statS3, side:'two',  name:'S3 column dispersion', det:'per-slot balancing, or clustering' },
+  { k:'S4', f:statS4, side:'two',  name:'S4 adjacent repeats within row', det:'within-row constraints' },
+  { k:'S5', f:statS5, side:'high', name:'S5 identical pairs, within athlete', det:'cross-station coupling' },
+  { k:'S6', f:statS6, side:'two',  name:'S6 first-target concentration', det:'all athletes seeded from one draw' },
+];
+let NULLTAB = null;
+function buildNullTable(n, seed, onDone, onProgress) {
+  const rng = mulberry32(seed >>> 0); const cols = STATS.map(() => new Float64Array(n)); let i = 0;
+  const chunk = () => {
+    const end = Math.min(i + 250, n);
+    for (; i < end; i++) { const R = genNull(rng); STATS.forEach((s,j) => cols[j][i] = s.f(R)); }
+    if (onProgress) onProgress(i/n);
+    if (i < n) setTimeout(chunk, 0);
+    else { const sorted = cols.map(c => Float64Array.from(c).sort()); NULLTAB = { n, cols, sorted, minp: minpNull(cols, sorted, n) }; onDone(); }
+  };
+  chunk();
+}
+const leCount = (sorted,x) => { let lo=0,hi=sorted.length; while(lo<hi){const m=(lo+hi)>>1; if(sorted[m]<=x)lo=m+1;else hi=m;} return lo; };
+const geCount = (sorted,x) => { let lo=0,hi=sorted.length; while(lo<hi){const m=(lo+hi)>>1; if(sorted[m]<x)lo=m+1;else hi=m;} return sorted.length-lo; };
+function pOf(j,val){ const s=NULLTAB.sorted[j], n=NULLTAB.n, side=STATS[j].side;
+  if(side==='high') return (geCount(s,val)+1)/(n+1);
+  if(side==='low')  return (leCount(s,val)+1)/(n+1);
+  return Math.min(1, 2*Math.min((geCount(s,val)+1)/(n+1), (leCount(s,val)+1)/(n+1))); }
+function minpNull(cols,sorted,n){ const mins=new Float64Array(n).fill(1);
+  STATS.forEach((st,j)=>{ for(let i=0;i<n;i++){ const v=cols[j][i]; let p;
+    if(st.side==='high') p=(geCount(sorted[j],v)+1)/(n+1);
+    else if(st.side==='low') p=(leCount(sorted[j],v)+1)/(n+1);
+    else p=Math.min(1,2*Math.min((geCount(sorted[j],v)+1)/(n+1),(leCount(sorted[j],v)+1)/(n+1)));
+    if(p<mins[i]) mins[i]=p; } });
+  return Float64Array.from(mins).sort(); }
+function batteryOn(R){ const obs=STATS.map(s=>s.f(R)); const ps=obs.map((v,j)=>pOf(j,v));
+  const mp=Math.min(...ps); const mn=NULLTAB.minp; const gp=(leCount(mn,mp)+1)/(mn.length+1);
+  const mean=STATS.map((_,j)=>{let t=0;for(let i=0;i<NULLTAB.n;i++)t+=NULLTAB.cols[j][i];return t/NULLTAB.n;});
+  const sd=STATS.map((_,j)=>{let t=0;for(let i=0;i<NULLTAB.n;i++){const d=NULLTAB.cols[j][i]-mean[j];t+=d*d;}return Math.sqrt(t/NULLTAB.n);});
+  return { obs, ps, mp, gp, mean, sd }; }
+
+
+/* ============================================================
+   PARTIAL-ROUND ANALYSIS — for observed data, where some cells
+   may be missing. Cells use -1 for "not recorded".
+   ============================================================ */
+
+/* Prequential replay over the observed targets of one round, in firing order.
+   `startWeights` carries belief in from earlier rounds (null = library prior).
+   Returns per-model log-likelihood of this round's observed targets, plus the
+   counting and mixture hit counts on those same targets. */
+function replayRound(cells, startWeights, useA7) {
+  const st = newState();
+  const ll = new Float64Array(MODELS.length);
+  let nObs = 0, hitC = 0, hitM = 0, llC = 0, llM = 0;
+  const active = MODELS.map((m, j) => (useA7 || m.fam !== 'A7') ? j : -1).filter(j => j >= 0);
+  const base = startWeights || MODELS.map(m => m.prior);
+  const perShot = [];
+  for (const [a, s, v] of FIRING) {
+    const x = cells[idx3(a, s, v)];
+    if (x < 0) { st.last[s] = -1; continue; }          // missed target: nothing learned, sequence broken
+    const lw = active.map(j => Math.log(Math.max(base[j], 1e-300)) + ll[j]);
+    const mx = Math.max(...lw);
+    const w = lw.map(t => Math.exp(t - mx));
+    const tot = w.reduce((p, q) => p + q, 0);
+    const P = active.map(j => MODELS[j].f(st, a, s, v));
+    const mix = [0, 0, 0];
+    active.forEach((j, k) => { for (let y = 0; y < 3; y++) mix[y] += (w[k] / tot) * P[k][y]; });
+    const m0 = pM0(st, a, s, v);
+    const mixN = norm(mix);
+    hitC += argmax(m0) === x ? 1 : 0;
+    hitM += argmax(mixN) === x ? 1 : 0;
+    llC += -Math.log(Math.max(m0[x], 1e-300));
+    llM += -Math.log(Math.max(mixN[x], 1e-300));
+    active.forEach((j, k) => { ll[j] += Math.log(Math.max(P[k][x], 1e-300)); });
+    perShot.push({ a, s, v, x, mix: mixN, base: m0 });
+    applyShot(st, a, s, v, x);
+    nObs++;
+  }
+  return { ll, nObs, hitC, hitM, llC, llM, perShot, active };
+}
+
+/* Posterior weights over MODELS from cumulative log-likelihood. */
+function weightsFrom(llTotal, active) {
+  const idxs = active || MODELS.map((m, j) => j);
+  const lw = idxs.map(j => Math.log(MODELS[j].prior) + llTotal[j]);
+  const mx = Math.max(...lw);
+  const w = lw.map(t => Math.exp(t - mx));
+  const tot = w.reduce((p, q) => p + q, 0);
+  const out = new Float64Array(MODELS.length);
+  idxs.forEach((j, k) => out[j] = w[k] / tot);
+  return out;
+}
+
+/* Log Bayes factor of a family (marginalised over its lam grid, uniform) against M0. */
+function famLBF(llTotal, fam) {
+  const idxs = MODELS.map((m, j) => [m, j]).filter(([m]) => m.fam === fam).map(([, j]) => j);
+  if (!idxs.length) return -Infinity;
+  const mx = Math.max(...idxs.map(j => llTotal[j]));
+  const s = Math.log(idxs.reduce((p, j) => p + Math.exp(llTotal[j] - mx), 0)) + mx - Math.log(idxs.length);
+  return s - llTotal[0];
+}
+
+/* Row bookkeeping for observed data. */
+function rowStatus(cells, a, s) {
+  const c = [0, 0, 0]; let n = 0;
+  for (let v = 0; v < 5; v++) { const x = cells[idx3(a, s, v)]; if (x >= 0) { c[x]++; n++; } }
+  const over = c[0] > 2 || c[1] > 1 || c[2] > 2;
+  return { n, counts: c, invalid: over, complete: n === 5 && !over };
+}
+function roundStatus(cells) {
+  let obs = 0, invalid = 0, completeRows = 0;
+  for (let a = 0; a < 6; a++) for (let s = 0; s < 5; s++) {
+    const r = rowStatus(cells, a, s); obs += r.n;
+    if (r.invalid) invalid++; else if (r.complete) completeRows++;
+  }
+  return { obs, invalid, completeRows, complete: obs === 150 && invalid === 0 };
+}
+
+/* Canonical form for cross-round matching, up to relabelling of the athletes. */
+function roundKey(cells, relabel) {
+  const blocks = [];
+  for (let a = 0; a < 6; a++) {
+    let b = '';
+    for (let s = 0; s < 5; s++) for (let v = 0; v < 5; v++) b += cells[idx3(a, s, v)];
+    blocks.push(b);
+  }
+  return relabel ? blocks.slice().sort().join('|') : blocks.join('|');
+}
+
+/* Tally of which of the 30 orderings each complete row took, across rounds. */
+function orderingTally(roundsCells) {
+  const tally = new Array(N_ORD).fill(0); let n = 0;
+  roundsCells.forEach(cells => {
+    for (let a = 0; a < 6; a++) for (let s = 0; s < 5; s++) {
+      const st = rowStatus(cells, a, s);
+      if (!st.complete) continue;
+      const r = []; for (let v = 0; v < 5; v++) r.push(cells[idx3(a, s, v)]);
+      const i = ORD.findIndex(o => o.join('') === r.join(''));
+      if (i >= 0) { tally[i]++; n++; }
+    }
+  });
+  const e = n / N_ORD;
+  let x2 = 0; if (n) tally.forEach(c => { x2 += (c - e) * (c - e) / e; });
+  return { tally, n, x2, df: N_ORD - 1, p: n ? chisqP(x2, N_ORD - 1) : 1 };
+}
+
+/* Upper tail of the chi-square distribution (regularised incomplete gamma). */
+function gammaln(z) {
+  const g = [676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+             12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - gammaln(1 - z);
+  z -= 1; let x = 0.99999999999980993;
+  g.forEach((gi, i) => x += gi / (z + i + 1));
+  const t = z + g.length - 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+function chisqP(x2, df) {
+  if (x2 <= 0) return 1;
+  const a = df / 2, x = x2 / 2;
+  if (x < a + 1) {                       // series for the lower tail
+    let sum = 1 / a, term = sum;
+    for (let n = 1; n < 500; n++) { term *= x / (a + n); sum += term; if (term < sum * 1e-12) break; }
+    return Math.max(0, Math.min(1, 1 - sum * Math.exp(-x + a * Math.log(x) - gammaln(a))));
+  }
+  let b = x + 1 - a, c = 1e300, d = 1 / b, h = d;   // continued fraction for the upper tail
+  for (let i = 1; i < 500; i++) {
+    const an = -i * (i - a); b += 2;
+    d = an * d + b; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = b + an / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; const del = d * c; h *= del;
+    if (Math.abs(del - 1) < 1e-12) break;
+  }
+  return Math.max(0, Math.min(1, Math.exp(-x + a * Math.log(x) - gammaln(a)) * h));
+}
+
+/* Parse and serialise the observation CSV: round,athlete,station,v1..v5 */
+function emptyRound() { return new Int8Array(150).fill(-1); }
+function parseCSV(text) {
+  const rounds = new Map();
+  const bad = [];
+  text.split(/\r?\n/).forEach((line, i) => {
+    const t = line.trim(); if (!t) return;
+    if (/^\s*round\s*,/i.test(t) || /^\s*athlete\s*,/i.test(t)) return;      // header
+    const f = t.split(/[,;\t]/).map(z => z.trim());
+    let r, a, s, seq;
+    if (f.length >= 8) { r = +f[0]; a = +f[1]; s = +f[2]; seq = f.slice(3, 8).join(''); }
+    else if (f.length >= 7) { r = 1; a = +f[0]; s = +f[1]; seq = f.slice(2, 7).join(''); }
+    else if (f.length === 4) { r = +f[0]; a = +f[1]; s = +f[2]; seq = f[3]; }
+    else if (f.length === 3) { r = 1; a = +f[0]; s = +f[1]; seq = f[2]; }
+    else { bad.push(i + 1); return; }
+    if (!(r >= 1) || !(a >= 1 && a <= 6) || !(s >= 1 && s <= 5)) { bad.push(i + 1); return; }
+    if (!rounds.has(r)) rounds.set(r, emptyRound());
+    const cells = rounds.get(r);
+    seq.toUpperCase().replace(/[^LSR.\-_ ]/g, '').split('').slice(0, 5).forEach((ch, v) => {
+      const x = ch === 'L' ? 0 : ch === 'S' ? 1 : ch === 'R' ? 2 : -1;
+      cells[idx3(a - 1, s - 1, v)] = x;
+    });
+  });
+  return { rounds: [...rounds.entries()].sort((p, q) => p[0] - q[0]).map(e => e[1]), bad };
+}
+function toCSV(roundsCells) {
+  const out = ['round,athlete,station,v1,v2,v3,v4,v5'];
+  roundsCells.forEach((cells, r) => {
+    for (let a = 0; a < 6; a++) for (let s = 0; s < 5; s++) {
+      const row = [];
+      for (let v = 0; v < 5; v++) { const x = cells[idx3(a, s, v)]; row.push(x < 0 ? '' : LAB[x]); }
+      if (row.some(z => z !== '')) out.push([r + 1, a + 1, s + 1, ...row].join(','));
+    }
+  });
+  return out.join('\n');
+}
+
+</script>
+<script>
+"use strict";
+/* Round recorder and live analysis.
+   Depends on assets/engine.js (loaded first) and on the host page providing
+   these containers: #entry, #verdict, #evidence, #predictability, #battery,
+   #uniformity, #repeats. Everything inside them is generated here, so the two
+   sites can wrap it in their own chrome and copy. */
+
+(function () {
+
+const KEY = 'trap-audit-rounds-v2';
+const $ = id => document.getElementById(id);
+const mk = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const pct = v => (100 * v).toFixed(1) + '%';
+
+let rounds = [];          // array of Int8Array(150)
+let cur = 0;              // index of the round being edited
+let nullReady = false, nullBusy = false;
+
+/* ---------------- storage ---------------- */
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return false;
+    rounds = JSON.parse(raw).map(str => {
+      const c = emptyRound();
+      str.split('|').forEach((v, i) => { if (i < 150) c[i] = parseInt(v, 10); });
+      return c;
+    });
+    return rounds.length > 0;
+  } catch (e) { return false; }   // private mode or storage disabled: the page still works
+}
+function saveExplicit() {
+  try { localStorage.setItem(KEY, JSON.stringify(rounds.map(c => Array.from(c).join('|')))); } catch (e) {}
+}
+
+/* ---------------- entry UI ---------------- */
+function buildEntry() {
+  const host = $('entry'); host.innerHTML = '';
+  host.classList.add('an-wrap');
+
+  const bar = mk('div', 'an-toolbar');
+  const btn = (label, fn, cls) => { const b = mk('button', cls || '', label); b.addEventListener('click', fn); bar.appendChild(b); return b; };
+  btn('Add round', () => { rounds.push(emptyRound()); cur = rounds.length - 1; refresh(); }, 'primary');
+  btn('Example: clean machine', () => { loadExample('M0', 0); });
+  btn('Example: patterned machine', () => { loadExample('A2', 1); });
+  btn('Paste or import', () => { $('an-paste').classList.toggle('open'); });
+  btn('Download CSV', downloadCSV);
+  btn('Clear everything', () => {
+    if (!confirm('Delete all recorded rounds from this browser?')) return;
+    rounds = [emptyRound()]; cur = 0; refresh();
+  });
+  host.appendChild(bar);
+
+  const tabs = mk('div', 'an-tabs'); tabs.id = 'an-tabs'; host.appendChild(tabs);
+  const scroll = mk('div', 'an-gridscroll');
+  const grid = mk('div', 'an-grid'); grid.id = 'an-grid';
+  scroll.appendChild(grid); host.appendChild(scroll);
+
+  host.appendChild(mk('div', 'an-legend',
+    '<span><i style="background:var(--L)"></i>left</span>' +
+    '<span><i style="background:var(--S)"></i>straight</span>' +
+    '<span><i style="background:var(--R)"></i>right</span>' +
+    '<span>click a box to cycle, or focus it and press L, S or R. Arrow keys move. Leave a box empty if you did not see the target.</span>'));
+
+  const meta = mk('div', 'an-meta'); meta.id = 'an-meta'; host.appendChild(meta);
+
+  const paste = mk('div', 'an-paste'); paste.id = 'an-paste';
+  paste.innerHTML =
+    '<p class="an-hint">One line per athlete and station. Either <span class="mono">round,athlete,station,L,R,S,L,R</span> or the shorter ' +
+    '<span class="mono">round,athlete,station,LRSLR</span>. A missing target can be a dot. Anything already recorded is replaced.</p>' +
+    '<textarea id="an-pastebox" spellcheck="false" placeholder="1,1,1,L,R,S,L,R&#10;1,1,2,R,L,L,R,S&#10;1,2,1,S,L,R,R,L"></textarea>';
+  const prow = mk('div', 'an-toolbar');
+  const pb = mk('button', 'primary', 'Load these rounds'); pb.addEventListener('click', importPaste); prow.appendChild(pb);
+  const fl = mk('label', 'an-note', 'or choose a CSV file: ');
+  const fi = mk('input'); fi.type = 'file'; fi.accept = '.csv,.txt'; fi.style.fontFamily = 'var(--mono)'; fi.style.fontSize = '12px';
+  fi.addEventListener('change', ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = () => { $('an-pastebox').value = r.result; importPaste(); }; r.readAsText(f);
+  });
+  fl.appendChild(fi); prow.appendChild(fl);
+  paste.appendChild(prow);
+  host.appendChild(paste);
+}
+
+function loadExample(kind, lam) {
+  const seed = Math.floor(Math.random() * 1e6);
+  rounds = [0, 1, 2].map(i => Int8Array.from(generate(kind, lam, seed + i)));
+  cur = 0; refresh();
+}
+function importPaste() {
+  const txt = $('an-pastebox').value;
+  const res = parseCSV(txt);
+  if (!res.rounds.length) { alert('Nothing readable in that text. Each line needs a round, an athlete, a station and the five targets.'); return; }
+  rounds = res.rounds; cur = 0;
+  $('an-paste').classList.remove('open');
+  refresh();
+  if (res.bad.length) alert('Loaded ' + rounds.length + ' round(s). Skipped line(s): ' + res.bad.slice(0, 12).join(', ') + (res.bad.length > 12 ? '…' : ''));
+}
+function downloadCSV() {
+  const blob = new Blob([toCSV(rounds)], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'observed-rounds.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function drawTabs() {
+  const tabs = $('an-tabs'); tabs.innerHTML = '';
+  rounds.forEach((c, i) => {
+    const st = roundStatus(c);
+    const cls = st.invalid ? 'bad' : st.complete ? 'full' : st.obs ? 'part' : '';
+    const b = mk('button', 'an-tab', '<span class="dot ' + cls + '"></span>Round ' + (i + 1));
+    b.setAttribute('aria-selected', i === cur ? 'true' : 'false');
+    b.addEventListener('click', () => { cur = i; refresh(); });
+    tabs.appendChild(b);
+  });
+  const del = mk('button', 'an-tab', '× remove this round');
+  del.addEventListener('click', () => {
+    if (rounds.length === 1) { rounds = [emptyRound()]; } else { rounds.splice(cur, 1); cur = Math.max(0, cur - 1); }
+    refresh();
+  });
+  tabs.appendChild(del);
+}
+
+function drawGrid() {
+  const grid = $('an-grid'); grid.innerHTML = '';
+  grid.appendChild(mk('div', 'hd', ''));
+  for (let s = 0; s < 5; s++) grid.appendChild(mk('div', 'hd', 'station ' + (s + 1)));
+  const cells = rounds[cur];
+  for (let a = 0; a < 6; a++) {
+    grid.appendChild(mk('div', 'rl', 'athlete ' + (a + 1)));
+    for (let s = 0; s < 5; s++) {
+      const st = rowStatus(cells, a, s);
+      const strip = mk('div', 'an-strip' + (st.invalid ? ' bad' : ''));
+      for (let v = 0; v < 5; v++) {
+        const x = cells[idx3(a, s, v)];
+        const b = mk('button', 'cellbtn', x < 0 ? '·' : LAB[x]);
+        if (x >= 0) b.dataset.x = x;
+        b.dataset.pos = a + ',' + s + ',' + v;
+        b.title = 'athlete ' + (a + 1) + ', station ' + (s + 1) + ', visit ' + (v + 1);
+        b.addEventListener('click', () => { setCell(a, s, v, (x + 2) % 4 - 1); });
+        b.addEventListener('keydown', ev => onKey(ev, a, s, v));
+        strip.appendChild(b);
+      }
+      grid.appendChild(strip);
+    }
+  }
+}
+function setCell(a, s, v, x) {
+  rounds[cur][idx3(a, s, v)] = x;
+  saveExplicit(); refresh(true);
+}
+function focusCell(a, s, v) {
+  const e = document.querySelector('.cellbtn[data-pos="' + a + ',' + s + ',' + v + '"]');
+  if (e) e.focus();
+}
+function onKey(ev, a, s, v) {
+  const k = ev.key.toLowerCase();
+  const map = { l: 0, s: 1, r: 2 };
+  if (k in map) { ev.preventDefault(); setCell(a, s, v, map[k]); next(a, s, v); return; }
+  if (k === 'backspace' || k === 'delete' || k === '0') { ev.preventDefault(); setCell(a, s, v, -1); return; }
+  const moves = { arrowright: [0, 0, 1], arrowleft: [0, 0, -1], arrowdown: [1, 0, 0], arrowup: [-1, 0, 0] };
+  if (k in moves) {
+    ev.preventDefault();
+    let [da, ds, dv] = moves[k];
+    let A = a + da, S = s + ds, V = v + dv;
+    if (V > 4) { V = 0; S++; } if (V < 0) { V = 4; S--; }
+    if (S > 4) { S = 0; A++; } if (S < 0) { S = 4; A--; }
+    if (A < 0 || A > 5) return;
+    focusCell(A, S, V);
+  }
+}
+function next(a, s, v) {
+  let A = a, S = s, V = v + 1;
+  if (V > 4) { V = 0; S++; } if (S > 4) { S = 0; A++; }
+  if (A > 5) return;
+  focusCell(A, S, V);
+}
+
+function drawMeta() {
+  const c = rounds[cur], st = roundStatus(c);
+  const all = rounds.reduce((p, r) => p + roundStatus(r).obs, 0);
+  $('an-meta').innerHTML =
+    '<span>this round: <b>' + st.obs + '</b> of 150 targets recorded</span>' +
+    '<span>complete rows: <b>' + st.completeRows + '</b> of 30</span>' +
+    '<span>impossible rows: <b style="color:' + (st.invalid ? 'var(--R)' : 'inherit') + '">' + st.invalid + '</b></span>' +
+    '<span>across all rounds: <b>' + all + '</b> targets</span>';
+}
+
+/* ---------------- analysis ---------------- */
+function analyse() {
+  const anyIncomplete = rounds.some(c => !roundStatus(c).complete);
+  const useA7 = !anyIncomplete;
+  const ll = new Float64Array(MODELS.length);
+  let hitC = 0, hitM = 0, n = 0, active = null;
+  const perRound = [];
+  let w = null;
+  rounds.forEach(cells => {
+    const r = replayRound(cells, w, useA7);
+    for (let j = 0; j < ll.length; j++) ll[j] += r.ll[j];
+    hitC += r.hitC; hitM += r.hitM; n += r.nObs; active = r.active;
+    w = weightsFrom(ll, r.active);
+    let best = -Infinity;
+    FAMS.slice(1).forEach(f => { if (useA7 || f !== 'A7') best = Math.max(best, famLBF(ll, f)); });
+    perRound.push({ n: r.nObs, lbf: best });
+  });
+  const lbf = {};
+  FAMS.slice(1).forEach(f => { if (useA7 || f !== 'A7') lbf[f] = famLBF(ll, f); });
+  const post = weightsFrom(ll, active);
+  const famPost = {}; FAMS.forEach(f => famPost[f] = 0);
+  MODELS.forEach((m, j) => { if (active.indexOf(j) >= 0) famPost[m.fam] += post[j]; });
+  const invalid = rounds.reduce((p, c) => p + roundStatus(c).invalid, 0);
+  return { ll, lbf, famPost, hitC, hitM, n, perRound, useA7, invalid, anyIncomplete };
+}
+
+const READ = v =>
+  v > 9 ? 'decisive' : v > 5 ? 'strong' : v > 2.3 ? 'moderate' : v > 1 ? 'slight' : v > -1 ? 'nothing either way' : 'evidence against this pattern';
+
+function drawVerdict(A) {
+  const host = $('verdict'); host.innerHTML = ''; host.classList.add('an-wrap');
+  if (A.n === 0) {
+    host.appendChild(mk('div', 'an-empty', 'Record some targets above, or load one of the examples, and the verdict appears here.'));
+    return;
+  }
+  const entries = Object.entries(A.lbf).sort((a, b) => b[1] - a[1]);
+  const [bestFam, bestLBF] = entries[0];
+  let cls, mark, head, text;
+  const enough = A.n >= 60;
+  if (!enough) {
+    cls = 'none'; mark = '?'; head = 'Not enough recorded yet';
+    text = 'You have ' + A.n + ' targets. Around 150 — one full round for the whole squad — is the point where a clear pattern starts to show. Keep going.';
+  } else if (bestLBF > 5) {
+    cls = 'struct'; mark = '!'; head = 'This machine is following a pattern';
+    text = 'The evidence points at this: ' + FAM_PLAIN[bestFam] + '. The odds against it being a coincidence are ' +
+           odds(bestLBF) + '. What to do about that is in the panels below.';
+  } else if (bestLBF > 2.3) {
+    cls = 'weak'; mark = '~'; head = 'Something may be there, but it is not settled';
+    text = 'The best match is this: ' + FAM_PLAIN[bestFam] + ', at ' + odds(bestLBF) + '. That is worth another few rounds at the same range before you believe it.';
+  } else if (bestLBF > -1) {
+    cls = 'none'; mark = '–'; head = 'Nothing found, and not enough to clear it either';
+    text = 'No pattern stands out in ' + A.n + ' targets. That is not the same as the machine being clean; see the note at the bottom.';
+  } else {
+    cls = 'clean'; mark = '✓'; head = 'Consistent with a clean machine';
+    text = 'Every pattern tested fits worse than plain randomness. On what you have recorded, counting is the best you can do.';
+  }
+  const v = mk('div', 'an-verdict ' + cls);
+  v.appendChild(mk('div', 'mark', mark));
+  const d = mk('div'); d.appendChild(mk('h3', '', head)); d.appendChild(mk('p', '', text)); v.appendChild(d);
+  host.appendChild(v);
+
+  const stats = mk('div', 'an-stats');
+  stats.innerHTML =
+    '<div><b>' + A.n + '</b><span>targets recorded</span></div>' +
+    '<div><b>' + rounds.length + '</b><span>rounds</span></div>' +
+    '<div><b>' + (bestLBF > 0 ? '+' : '') + bestLBF.toFixed(1) + '</b><span>strength of evidence</span></div>' +
+    '<div><b>' + (bestLBF > 1 ? FAM_SHORT[bestFam] : 'none') + '</b><span>closest pattern</span></div>';
+  host.appendChild(stats);
+
+  if (A.invalid) host.appendChild(mk('p', 'an-hint',
+    '<strong style="color:var(--R)">' + A.invalid + ' row(s) cannot happen:</strong> a station gives each athlete two lefts, two rights and one straight. ' +
+    'Rows marked in red break that, so either the note-taking slipped or the machine is not doing what it is supposed to. Fix or clear them before reading anything else here.'));
+  if (A.anyIncomplete) host.appendChild(mk('p', 'an-hint',
+    'Some targets are missing, so the firing-order pattern is not being tested. Everything else still works on what you did record.'));
+}
+const odds = l => {
+  const o = Math.exp(Math.min(l, 46));
+  if (o > 1e9) return 'astronomical — past a billion to one';
+  if (o > 1e6) return 'better than a million to one';
+  if (o > 1000) return 'about ' + Math.round(o / 1000) + ' thousand to one';
+  return 'about ' + Math.round(o) + ' to one';
+};
+
+const FAM_SHORT = { M0: 'none', A1: 'A1', A2o: 'A2', A4: 'A4', A5: 'A5', A7: 'A7' };
+const FAM_PLAIN = {
+  A1: 'every athlete at a station gets the same order',
+  A2o: 'one order per station, shifted along for each athlete',
+  A4: 'the machine never throws the same direction twice in a row',
+  A5: 'an athlete gets the same order at every station',
+  A7: 'the machine avoids repeating the direction it has just thrown'
+};
+
+function drawEvidence(A) {
+  const host = $('evidence'); host.innerHTML = ''; host.classList.add('an-wrap');
+  if (A.n === 0) { host.appendChild(mk('div', 'an-empty', 'No data yet.')); return; }
+  const entries = Object.entries(A.lbf).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(5, ...entries.map(e => Math.abs(e[1])));
+  const t = mk('table');
+  t.innerHTML = '<thead><tr><th>pattern</th><th>what it would mean</th><th>evidence</th><th></th><th>chance it is this</th></tr></thead>';
+  const tb = mk('tbody');
+  entries.forEach(([f, v]) => {
+    const tr = mk('tr');
+    const w = Math.min(100, 100 * Math.abs(v) / max) / 2;
+    tr.innerHTML =
+      '<td>' + FAM_SHORT[f] + '</td>' +
+      '<td class="dim">' + FAM_PLAIN[f] + '</td>' +
+      '<td class="' + (v > 2.3 ? 'hi' : '') + '">' + (v > 0 ? '+' : '') + v.toFixed(1) + ' · ' + READ(v) + '</td>' +
+      '<td style="width:130px"><span class="evbar"><i class="' + (v < 0 ? 'neg' : '') + '" style="left:' + (v < 0 ? 50 - w : 50) + '%;width:' + w + '%"></i></span></td>' +
+      '<td>' + pct(A.famPost[f]) + '</td>';
+    tb.appendChild(tr);
+  });
+  const tr0 = mk('tr');
+  tr0.innerHTML = '<td>none</td><td class="dim">a clean machine, drawing at random</td><td class="dim">reference</td><td></td><td class="' +
+    (A.famPost.M0 > 0.5 ? 'good' : '') + '">' + pct(A.famPost.M0) + '</td>';
+  tb.appendChild(tr0);
+  t.appendChild(tb);
+  const tw = mk('div', 'tw'); tw.appendChild(t); host.appendChild(tw);
+  host.appendChild(mk('p', 'an-hint',
+    'The evidence column is a log odds score: +2.3 is ten to one, +4.6 is a hundred to one, +6.9 is a thousand to one. ' +
+    'It adds up as you record more rounds at the same range, and it can go negative, which counts against that pattern. ' +
+    'The last column starts at 50 per cent on “clean” before any data, so a modest number there early on means little.'));
+}
+
+function drawPredictability(A) {
+  const host = $('predictability'); host.innerHTML = ''; host.classList.add('an-wrap');
+  if (A.n < 30) { host.appendChild(mk('div', 'an-empty', 'Record at least 30 targets to measure this.')); return; }
+  const c = A.hitC / A.n, m = A.hitM / A.n, d = m - c;
+  const se = Math.sqrt(Math.max(m * (1 - m), 0.01) / A.n);
+  const stats = mk('div', 'an-stats');
+  stats.innerHTML =
+    '<div><b>' + pct(c) + '</b><span>counting alone</span></div>' +
+    '<div><b>' + pct(m) + '</b><span>counting plus pattern</span></div>' +
+    '<div><b>' + (d >= 0 ? '+' : '') + (100 * d).toFixed(1) + '</b><span>points gained</span></div>' +
+    '<div><b>±' + (100 * 1.96 * se).toFixed(1) + '</b><span>margin on that gain</span></div>';
+  host.appendChild(stats);
+  const verdict = Math.abs(d) < 1.96 * se
+    ? 'The gain is inside the margin of error, so on this much data it is not a real edge yet.'
+    : (d > 0 ? 'The gain is bigger than the margin of error. On this range, with this machine, the pattern is worth something.'
+             : 'The model did worse than plain counting here, which is what happens when there is no pattern to find.');
+  host.appendChild(mk('p', 'an-hint',
+    'Every target was predicted before it was revealed, using only what had been recorded up to that point. ' +
+    'Counting alone means keeping track of what each athlete has already had at that station: two lefts, two rights, one straight. Over a full clean round it is right about 60.7 per cent of the time. ' + verdict));
+}
+
+/* ---------------- the older screening test ---------------- */
+function drawBattery(A) {
+  const host = $('battery'); host.innerHTML = ''; host.classList.add('an-wrap');
+  const complete = rounds.filter(c => roundStatus(c).complete);
+  if (!complete.length) {
+    host.appendChild(mk('div', 'an-empty', 'This check needs at least one complete round — all 150 targets, no impossible rows.'));
+    return;
+  }
+  if (!nullReady) {
+    const b = mk('button', 'primary', 'Run the screening test on ' + complete.length + ' complete round(s)');
+    const note = mk('span', 'an-note', '');
+    b.addEventListener('click', () => {
+      if (nullBusy) return;
+      nullBusy = true; b.disabled = true; note.textContent = ' building the comparison table…';
+      buildNullTable(3000, 12, () => { nullReady = true; nullBusy = false; refreshPanels(); },
+                     f => note.textContent = ' building the comparison table… ' + Math.round(f * 100) + '%');
+    });
+    const row = mk('div', 'an-toolbar'); row.appendChild(b); row.appendChild(note);
+    host.appendChild(row);
+    host.appendChild(mk('p', 'an-hint', 'It simulates three thousand clean rounds first, so the six numbers below have something honest to be compared against. Takes a few seconds.'));
+    return;
+  }
+  const res = complete.map(c => batteryOn(c));
+  const rejected = res.filter(r => r.gp <= 0.05).length;
+  const last = res[res.length - 1];
+  const stats = mk('div', 'an-stats');
+  stats.innerHTML =
+    '<div><b>' + complete.length + '</b><span>complete rounds tested</span></div>' +
+    '<div><b>' + rejected + '</b><span>flagged as not random</span></div>' +
+    '<div><b>' + last.gp.toFixed(4) + '</b><span>latest round, overall p</span></div>' +
+    '<div><b>' + (rejected ? 'yes' : 'no') + '</b><span>screen fired</span></div>';
+  host.appendChild(stats);
+  const t = mk('table');
+  t.innerHTML = '<thead><tr><th>what it counts</th><th>this round</th><th>a clean machine</th><th>how far off</th><th>p</th></tr></thead>';
+  const tb = mk('tbody');
+  STATS.forEach((s, j) => {
+    const z = (last.obs[j] - last.mean[j]) / last.sd[j];
+    tb.innerHTML += '<tr><td>' + s.name.replace(/^S\d /, '') + '</td><td>' + last.obs[j].toFixed(2) + '</td><td class="dim">' +
+      last.mean[j].toFixed(2) + '</td><td class="' + (Math.abs(z) > 3 ? 'hi' : '') + '">' + (z > 0 ? '+' : '') + z.toFixed(2) + '</td><td class="' +
+      (last.ps[j] <= 0.05 ? 'hi' : '') + '">' + last.ps[j].toFixed(4) + '</td></tr>';
+  });
+  t.appendChild(tb);
+  const tw = mk('div', 'tw'); tw.appendChild(t); host.appendChild(tw);
+  host.appendChild(mk('p', 'an-hint',
+    'This is the older, simpler check: six summary numbers for the most recent complete round, each compared against what a clean machine produces. ' +
+    'It can say “this is not random” but it cannot say what to expect instead, and it looks at one round at a time, so it never sees a machine that repeats whole rounds. ' +
+    'Treat a disagreement with the panel above as a reason to record more rounds, not as a tie to be broken.'));
+}
+
+/* ---------------- uniformity and repeats ---------------- */
+function drawUniformity() {
+  const host = $('uniformity'); host.innerHTML = ''; host.classList.add('an-wrap');
+  const t = orderingTally(rounds);
+  if (t.n < 30) { host.appendChild(mk('div', 'an-empty', 'Needs at least 30 complete rows. You have ' + t.n + '.')); return; }
+  const stats = mk('div', 'an-stats');
+  stats.innerHTML =
+    '<div><b>' + t.n + '</b><span>complete rows collected</span></div>' +
+    '<div><b>' + (t.n / 30).toFixed(1) + '</b><span>average per order</span></div>' +
+    '<div><b>' + t.x2.toFixed(1) + '</b><span>spread score</span></div>' +
+    '<div><b>' + t.p.toFixed(4) + '</b><span>p</span></div>';
+  host.appendChild(stats);
+
+  const max = Math.max(...t.tally, 1);
+  const bars = mk('div');
+  bars.style.cssText = 'display:grid;grid-template-columns:repeat(30,1fr);gap:3px;align-items:end;height:90px;margin-top:16px;padding-bottom:2px;border-bottom:1px solid var(--line)';
+  t.tally.forEach((c, i) => {
+    const b = mk('div');
+    b.style.cssText = 'background:var(--amber);opacity:' + (c ? .85 : .25) + ';height:' + Math.max(2, 100 * c / max) + '%';
+    b.title = ORD[i].map(x => LAB[x]).join('') + ': ' + c;
+    bars.appendChild(b);
+  });
+  host.appendChild(bars);
+  const cap = mk('div', 'an-note', 'each bar is one of the 30 possible orders, hover for the count');
+  cap.style.marginTop = '8px';
+  host.appendChild(cap);
+
+  const prog = mk('div', 'an-prog'); prog.style.marginTop = '14px';
+  prog.appendChild(mk('i', '', '')).style.width = Math.min(100, 100 * t.n / 1100) + '%';
+  host.appendChild(prog);
+  host.appendChild(mk('div', 'an-note', 'progress toward the ~1,100 rows this particular check needs'));
+  host.appendChild(mk('p', 'an-hint',
+    'This asks a different question from the panels above: not whether the rows are linked to each other, but whether all 30 possible orders come up equally often in the long run. ' +
+    'It needs roughly 1,100 rows to be worth much, which is about 37 full rounds — you are ' + Math.round(100 * Math.min(1, t.n / 1100)) + ' per cent of the way there. ' +
+    (t.p <= 0.05 ? 'On what you have, the spread does not look even. Note that a machine which repeats orders across athletes can also trip this, so read it alongside the pattern evidence rather than on its own.'
+                 : 'On what you have, the spread looks even.')));
+}
+
+function drawRepeats() {
+  const host = $('repeats'); host.innerHTML = ''; host.classList.add('an-wrap');
+  const complete = rounds.map((c, i) => [c, i]).filter(([c]) => roundStatus(c).complete);
+  if (complete.length < 2) {
+    host.appendChild(mk('div', 'an-empty', 'Needs at least two complete rounds. You have ' + complete.length + '.'));
+    host.appendChild(mk('p', 'an-hint', 'This is the check that matters most and the one no single-round test can do. If a machine works from a fixed set of prepared rounds, each round on its own looks perfectly random — the giveaway is the same round turning up twice.'));
+    return;
+  }
+  const exact = new Map(), relab = new Map();
+  complete.forEach(([c, i]) => {
+    const k1 = roundKey(c, false), k2 = roundKey(c, true);
+    (exact.get(k1) || exact.set(k1, []).get(k1)).push(i + 1);
+    (relab.get(k2) || relab.set(k2, []).get(k2)).push(i + 1);
+  });
+  const exactGroups = [...exact.values()].filter(g => g.length > 1);
+  const relabGroups = [...relab.values()].filter(g => g.length > 1);
+  const stats = mk('div', 'an-stats');
+  stats.innerHTML =
+    '<div><b>' + complete.length + '</b><span>complete rounds</span></div>' +
+    '<div><b>' + exactGroups.length + '</b><span>exact repeats</span></div>' +
+    '<div><b>' + (relabGroups.length - exactGroups.length) + '</b><span>repeats with athletes swapped</span></div>' +
+    '<div><b>' + (exactGroups.length + relabGroups.length ? 'yes' : 'no') + '</b><span>reuse found</span></div>';
+  host.appendChild(stats);
+  if (exactGroups.length || relabGroups.length) {
+    const list = (exactGroups.length ? exactGroups : relabGroups).map(g => 'rounds ' + g.join(' and ')).join('; ');
+    host.appendChild(mk('p', 'an-hint',
+      '<strong style="color:var(--amber)">Found: ' + list + '.</strong> Two rounds of 150 targets matching by chance is a one in 10<sup>44</sup> event. ' +
+      'This is not a probability worth arguing about: the machine is working from a fixed set of prepared rounds. Once you have recorded that set, you know the rest of any round from its first few targets. ' +
+      'Keep recording to find out how large the set is.'));
+  } else {
+    host.appendChild(mk('p', 'an-hint',
+      'No repeats so far. That rules nothing out yet — if the machine holds twenty prepared rounds you would expect your first repeat somewhere around the sixth or seventh round you watch, and if it holds a hundred, much later.'));
+  }
+}
+
+function drawCaveats(A) {
+  const host = $('caveats'); if (!host) return;
+  host.innerHTML = '';
+  host.appendChild(mk('p', '',
+    'A quiet result here is weak evidence, not a clean bill of health. A machine that applies a pattern to only a quarter of its draws produces about half a point of evidence per round, so four to nine rounds at the same range are needed before “nothing found” means anything. ' +
+    (A && A.n ? 'You currently have ' + rounds.length + ' round(s).' : '')));
+  host.appendChild(mk('p', '',
+    'Everything here is about direction only — left, straight or right. It says nothing about the angle, height or speed of a target, which change with the machine settings and drift through a session. And it is tied to the range and the day you recorded it: a pattern found at one range under one set-up does not transfer to another.'));
+  host.appendChild(mk('p', '',
+    'This is a record-and-review tool for training and equipment checks. It is not built for use during competition.'));
+}
+
+/* ---------------- refresh ---------------- */
+let pending = null;
+function refreshPanels() {
+  const A = analyse();
+  drawVerdict(A); drawEvidence(A); drawPredictability(A);
+  drawBattery(A); drawUniformity(); drawRepeats(); drawCaveats(A);
+}
+function refresh(keepFocus) {
+  const focused = keepFocus && document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.pos : null;
+  drawTabs(); drawGrid(); drawMeta(); saveExplicit();
+  if (focused) { const p = focused.split(',').map(Number); focusCell(p[0], p[1], p[2]); }
+  clearTimeout(pending);
+  pending = setTimeout(refreshPanels, 120);
+}
+
+/* ---------------- start ---------------- */
+buildEntry();
+if (!load() || !rounds.length) rounds = [emptyRound()];
+cur = 0;
+refresh();
+
+})();
+
+</script>
+</body>
+</html>
